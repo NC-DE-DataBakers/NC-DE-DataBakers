@@ -15,7 +15,7 @@ import csv
 
 load_dotenv(find_dotenv())
 
-def lambda_handler():
+def conn_db():
     """Using the required dotenv variables to feed the pg8000 connection function with the correct host name, database name and credentials.
     
     We will be able to access the database in a pythonic context and use python and PostgreSQL to achieve the intended functionality.
@@ -26,20 +26,24 @@ def lambda_handler():
     password=os.environ.get("tote_password")
 
     conn = Connection(user=user, password=password, host=host, database=database)
+    return conn
 
+def name_fetcher():
     """This PSQL query retrieves all public tables, within the ToteSys database, in this instance.
 
     Running the query, the results are stored in a variable, table_names.
     """
 
     table_query = "SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\';"
-    table_names = conn.run(table_query)
+    table_names = conn_db().run(table_query)
+    return table_names
 
-    """Using the os library, a new directory 'DB/data' is created providing it doesn't already exist.
+def csv_writer():
+    """Using the os library, a new directory 'tmp' is created providing it doesn't already exist.
     """
 
-    if not os.path.exists("DB/data"):
-        os.makedirs("DB/data")
+    if not os.path.exists("tmp"):
+        os.makedirs("tmp")
 
     """Using a for loop, we will access the table_names variable which contains dictionaries of each table.
 
@@ -47,14 +51,13 @@ def lambda_handler():
 
     Using with open, we will use the CSV library to write this table_data to a new file in CSV format.
     """
-
+    table_names = name_fetcher()
     for table_name in table_names:
         query = f"SELECT * FROM {table_name[0]}"
-        table_data = conn.run(query)
-        with open(f"DB/data/{table_name[0]}.csv", "w", newline="") as csvfile:
+        table_data = conn_db().run(query)
+        with open(f"tmp/{table_name[0]}.csv", "w", newline="") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(table_data)
+    conn_db().close()
 
-    conn.close()
-
-lambda_handler()
+csv_writer()

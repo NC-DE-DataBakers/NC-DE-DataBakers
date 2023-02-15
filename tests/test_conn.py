@@ -23,16 +23,8 @@ def test_csv_file_is_created_for_each_table_name_containing_data_in_DB_data_dire
         assert os.path.exists(csv_file)
 
 def test_valid_data_is_saved_to_CSV_file():
-    host=os.environ.get("tote_host")
-    database=os.environ.get("tote_database")
-    user=os.environ.get("tote_user")
-    password=os.environ.get("tote_password")
-
-    conn = Connection(user=user, password=password, host=host, database=database)
-
+    lambda_handler()
     for table_name in table_names:
-        query = f'SELECT * FROM {table_name}'
-        original_data = conn.run(query)
         print(original_data)
         with open(f'DB/data/{table_name}.csv', 'r') as csv_file:
             csv_data = list(csv.reader(csv_file))
