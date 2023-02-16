@@ -7,6 +7,7 @@ This application is designed to be run as a lambda function.
 
 import os
 from dotenv import load_dotenv, find_dotenv
+import pg8000
 from pg8000 import Connection
 import csv
 
@@ -17,16 +18,19 @@ load_dotenv(find_dotenv())
 
 def conn_db():
     """Using the required dotenv variables to feed the pg8000 connection function with the correct host name, database name and credentials.
-    
     We will be able to access the database in a pythonic context and use python and PostgreSQL to achieve the intended functionality.
     """
     host=os.environ.get("tote_host")
     database=os.environ.get("tote_database")
     user=os.environ.get("tote_user")
     password=os.environ.get("tote_password")
-
-    conn = Connection(user=user, password=password, host=host, database=database)
-    return conn
+    try:
+        conn = Connection(user=user, password=password, host=host, database=database)
+        return conn
+    except pg8000.exceptions.InterfaceError as IFE:
+        return f"{IFE} - please check your credentials"
+    except Exception as error:
+        return f"{error}"
 
 def name_fetcher():
     """This PSQL query retrieves all public tables, within the ToteSys database, in this instance.
@@ -38,7 +42,7 @@ def name_fetcher():
     table_names = conn_db().run(table_query)
     return table_names
 
-def csv_writer():
+def lambda_handler():
     """Using the os library, a new directory 'tmp' is created providing it doesn't already exist.
     """
 
@@ -60,4 +64,4 @@ def csv_writer():
             writer.writerows(table_data)
     conn_db().close()
 
-csv_writer()
+lambda_handler()
