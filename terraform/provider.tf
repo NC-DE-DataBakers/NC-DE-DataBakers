@@ -1,12 +1,12 @@
-# terraform {
-#   cloud {
-#     organization = "NC-bootcamp-2023"
+terraform {
+  cloud {
+    organization = "NC-kolkiewicz"
 
-#     workspaces {
-#       name = "nc-file_reader-lambda"
-#     }
-#   }
-# }
+    workspaces {
+      name = "nc-de-databakers"
+    }
+  }
+}
 
 provider "aws" {
   region = "us-east-1"
