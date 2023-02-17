@@ -5,7 +5,7 @@ data "aws_region" "current" {}
 
 resource "random_id" "id" {
   byte_length = 8
-  
+
   keepers = {
     timestamp = timestamp() # force change on every execution
   }
