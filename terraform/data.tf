@@ -4,13 +4,13 @@ data "aws_region" "current" {}
 
 data "archive_file" "tester_lambda" {
   type        = "zip"
-  source_file = "${path.module}/src/tester_lambda.py"
+  source_file = "${path.module}/../src/tester_lambda.py"
   output_path = "../terraform/code_zip/tester_lambda.zip"
 }
 
 data "archive_file" "extractor_lambda" {
   type        = "zip"
-  source_file = "${path.module}/src/extractor_lambda.py"
+  source_file = "${path.module}/../src/extractor_lambda.py"
   output_path = "../terraform/code_zip/extractor_lambda.zip"
 }
 
