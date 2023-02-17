@@ -21,7 +21,7 @@ jobs:
           run: make requirements
         - name: Install Dev Dependencies
           run: make dev-setup
-          
+
   deploy:
     environment: dev
     needs: run-checks
