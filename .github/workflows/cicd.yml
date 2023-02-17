@@ -32,8 +32,6 @@ jobs:
       - name: Zip Extractor Function
         id: zip
         run: ./terraform/code_zip/extractor_lambda.zip ./src/extractor_lambda.py
-      - name: Zip Tester Function
-        id: zip
         run: ./terraform/code_zip/tester_lambda.zip ./src/tester_lambda.py
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2.0.3
