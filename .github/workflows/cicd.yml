@@ -17,3 +17,5 @@ jobs:
             python-version: '3.9'
         - name: Install make
           run: sudo apt install make -y
+        - name: Install Application Requirements
+          run: make requirements
