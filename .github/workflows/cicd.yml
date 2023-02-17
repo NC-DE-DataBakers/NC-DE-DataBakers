@@ -19,3 +19,5 @@ jobs:
           run: sudo apt install make -y
         - name: Install Application Requirements
           run: make requirements
+        - name: Install Dev Dependencies
+          run: make dev-setup
