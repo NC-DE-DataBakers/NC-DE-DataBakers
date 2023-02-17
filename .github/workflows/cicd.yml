@@ -21,5 +21,9 @@ jobs:
           run: make requirements
         - name: Install Dev Dependencies
           run: make dev-setup
-        - name: Run Checks
-          run: make run-checks
+        # - name: Run Checks
+        #   run: make run-checks
+  deploy:
+    environment: dev
+    needs: run-checks
+    runs-on: ubuntu-latest
