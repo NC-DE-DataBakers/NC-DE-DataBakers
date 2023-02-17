@@ -5,7 +5,7 @@ data "aws_region" "current" {}
 
 resource "random_id" "id" {
   keepers {
-    timestamp = "${timestamp()}" # force change on every execution
+    timestamp = timestamp() # force change on every execution
   }
 }
 
