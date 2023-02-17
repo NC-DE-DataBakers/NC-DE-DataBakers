@@ -27,3 +27,6 @@ jobs:
     environment: dev
     needs: run-checks
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3.3.0
