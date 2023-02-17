@@ -21,3 +21,5 @@ jobs:
           run: make requirements
         - name: Install Dev Dependencies
           run: make dev-setup
+        - name: Run Checks
+          run: make run-checks
