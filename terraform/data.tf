@@ -2,6 +2,15 @@ data "aws_caller_identity" "current" {}
 
 data "aws_region" "current" {}
 
+data "file" "tester_lambda" {
+  path = "${path.module}/../terraform/code_zip/tester_lambda.zip"
+}
+
+
+data "file" "extractor_lambda" {
+  path = "${path.module}/../terraform/code_zip/extractor_lambda.zip"
+}
+
 
 # resource "random_id" "id" {
 #   byte_length = 8
