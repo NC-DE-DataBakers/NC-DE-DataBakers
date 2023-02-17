@@ -1,9 +1,9 @@
 terraform {
   cloud {
-    organization = "NC-bootcamp-2023"
+    organization = "NC-kolkiewicz"
 
     workspaces {
-      name = "nc-file_reader-lambda"
+      name = "nc-de-databakers"
     }
   }
 }
