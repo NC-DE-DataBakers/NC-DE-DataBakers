@@ -45,3 +45,7 @@ jobs:
         working-directory: ./terraform
         id: validate
         run: terraform validate -no-color
+      - name: Terraform Plan
+        working-directory: ./terraform
+        id: plan
+        run: terraform plan -no-color -input=false
