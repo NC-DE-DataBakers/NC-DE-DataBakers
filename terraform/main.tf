@@ -1,3 +1,4 @@
+
 data "template_file" "cloudformation_sns_stack" {
   template = "${file("${path.module}/templates/email-sns-stack.json.tpl")}"
   vars = {
@@ -12,4 +13,5 @@ resource "aws_cloudformation_stack" "sns_topic" {
 #     tomap("Name", "${var.stack_name}")
 #   )}"
   tags = "${merge(tomap(zipmap(["Name"], [var.stack_name])))}"
+
 }
