@@ -10,7 +10,7 @@ from dotenv import load_dotenv, find_dotenv
 from pg8000 import Connection
 import csv
 import pg8000
-​
+
 """Find and retrieve environment variables from the .env file containing confidential credentials.
 """
 load_dotenv(find_dotenv())
@@ -18,7 +18,7 @@ host=os.environ.get("tote_host")
 database=os.environ.get("tote_database")
 user=os.environ.get("tote_user")
 password=os.environ.get("tote_password")
-​
+
 def conn_db():
     """Using the required dotenv variables to feed the pg8000 connection function with the correct host name, database name and credentials.
     We will be able to access the database in a pythonic context and use python and PostgreSQL to achieve the intended functionality.
@@ -46,13 +46,13 @@ def conn_db():
         return PE
     except Exception as error:
         return f"{error}"
-​
+
 def name_fetcher():
     """This PSQL query retrieves all public tables, within the ToteSys database, in this instance.
 ​
     Running the query, the results are stored in a variable, table_names.
-    """
-​
+     """
+
     table_query = "SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\';"
     try:
         table_names = conn_db().run(table_query)
