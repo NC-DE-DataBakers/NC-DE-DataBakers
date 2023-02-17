@@ -22,7 +22,7 @@ resource "aws_iam_role" "extractor_lambda_role" {
 
 data "aws_iam_policy_document" "s3_read_document" {
   statement {
-    actions = ["s3:ListAllMyBuckets",]
+    actions = ["s3:ListAllMyBuckets", ]
 
     resources = [
       "arn:aws:s3:::*"
@@ -45,8 +45,8 @@ data "aws_iam_policy_document" "s3_write_document" {
       "s3:GetObject",
       "s3:ListBucket",
       "s3:PutObject",
-      "s3:DeleteObject"]
-    
+    "s3:DeleteObject"]
+
     resources = [
       "${aws_s3_bucket.csv_bucket.arn}/${var.csv_input_name}_key/*"
     ]
@@ -63,7 +63,7 @@ data "aws_iam_policy_document" "cw_document" {
   }
 
   statement {
-    actions = ["logs:CreateLogStream", "logs:PutLogEvents", "logs:CreateLogGroup","logs:PutRetentionPolicy"]
+    actions = ["logs:CreateLogStream", "logs:PutLogEvents", "logs:CreateLogGroup", "logs:PutRetentionPolicy"]
 
     resources = [
       "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.extractor_lambda_name}:*"

@@ -37,12 +37,12 @@ variable "totesys_creds" {
   default = {
     username = "project_user_2",
     password = "paxjekPK3hDXu2aXcJ9xyuBS",
-    host = "nc-data-eng-totesys-production.chpsczt8h1nu.eu-west-2.rds.amazonaws.com",
+    host     = "nc-data-eng-totesys-production.chpsczt8h1nu.eu-west-2.rds.amazonaws.com",
     database = "totesys"
-    port = "5432"
+    port     = "5432"
   }
 
-  type = map(string)
+  type      = map(string)
   sensitive = true
 }
 
@@ -50,12 +50,12 @@ variable "totesys_creds" {
 variable "display_name" {
   type        = string
   description = "Name shown in confirmation emails"
-  default = "kem oseo"
+  default     = "kem oseo"
 }
 variable "email_addresses" {
-  type        = list
+  type        = list(any)
   description = "Email address to send notifications to"
-  default = ["kemoseo@gmail.com"]
+  default     = ["kemoseo@gmail.com"]
 }
 variable "protocol" {
   type        = string
@@ -65,5 +65,5 @@ variable "protocol" {
 variable "stack_name" {
   type        = string
   description = "Unique Cloudformation stack name that wraps the SNS topic."
-  default = "DataBakersStack"
+  default     = "DataBakersStack"
 }
