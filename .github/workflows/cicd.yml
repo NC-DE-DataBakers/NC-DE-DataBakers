@@ -32,23 +32,23 @@ jobs:
       - name: Copy Source Files
         id: copy_source
         run: ./copy_source.sh
-      # - name: Setup Terraform
-      #   uses: hashicorp/setup-terraform@v2.0.3
-      #   with:
-      #     cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-      # - name: Terraform Format
-      #   working-directory: ./terraform
-      #   id: fmt
-      #   run: terraform fmt -check
-      # - name: Terraform Init
-      #   working-directory: ./terraform
-      #   id: init
-      #   run: terraform init
-      # - name: Terraform Validate
-      #   working-directory: ./terraform
-      #   id: validate
-      #   run: terraform validate -no-color
-      # - name: Terraform Plan
-      #   working-directory: ./terraform
-      #   id: plan
-      #   run: terraform plan -no-color -input=false
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2.0.3
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+      - name: Terraform Format
+        working-directory: ./terraform
+        id: fmt
+        run: terraform fmt -check
+      - name: Terraform Init
+        working-directory: ./terraform
+        id: init
+        run: terraform init
+      - name: Terraform Validate
+        working-directory: ./terraform
+        id: validate
+        run: terraform validate -no-color
+      - name: Terraform Plan
+        working-directory: ./terraform
+        id: plan
+        run: terraform plan -no-color -input=false
