@@ -26,11 +26,11 @@ resource "aws_lambda_function" "data_extractor" { #s3_file_reader
   function_name = var.extractor_lambda_name
   s3_bucket     = aws_s3_bucket.code_bucket.bucket
   s3_key        = "${var.extractor_lambda_name}_key/extractor_lambda.zip"
-  role          = "${aws_iam_role.extractor_lambda_role.arn}"
+  role          = aws_iam_role.extractor_lambda_role.arn
   handler       = "reader.lambda_handler"
   runtime       = "python3.9"
   #depends_on       = [aws_cloudwatch_log_group.lambda_log_group]
-  source_code_hash = "${data.archive_file.extractor_lambda.output_base64sha256}" #${path.module}/function.zip
+  source_code_hash = data.archive_file.extractor_lambda.output_base64sha256 #${path.module}/function.zip
 }
 
 resource "aws_lambda_function" "tester_lambda" { #s3_file_reader
@@ -38,10 +38,10 @@ resource "aws_lambda_function" "tester_lambda" { #s3_file_reader
   function_name    = var.tester_lambda_name
   s3_bucket        = aws_s3_bucket.code_bucket.bucket
   s3_key           = "${var.tester_lambda_name}_key/tester_lambda.zip"
-  role             = "${aws_iam_role.extractor_lambda_role.arn}"
+  role             = aws_iam_role.extractor_lambda_role.arn
   handler          = "reader.lambda_handler"
   runtime          = "python3.9"
-  source_code_hash = "${data.archive_file.tester_lambda.output_base64sha256}" #${path.module}/function.zip
+  source_code_hash = data.archive_file.tester_lambda.output_base64sha256 #${path.module}/function.zip
 }
 
 resource "aws_lambda_permission" "allow_s3" {
