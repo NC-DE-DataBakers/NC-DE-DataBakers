@@ -4,15 +4,14 @@ data "aws_region" "current" {}
 
 data "archive_file" "tester_lambda" {
   type        = "zip"
-  source_file = "${path.module}/../src/tester_lambda.py"
-  output_path = "${path.module}/../terraform/code_zip/tester_lambda.zip"
+  source_file = "${path.module}/src/tester_lambda.py"
+  output_path = "${path.module}/code_zip/tester_lambda.zip"
 }
-
 
 data "archive_file" "extractor_lambda" {
   type        = "zip"
-  source_file = "${path.module}/../src/tester_lambda.py"
-  output_path = "${path.module}/../terraform/code_zip/extractor_lambda.zip"
+  source_file = "${path.module}/src/extractor_lambda.py"
+  output_path = "${path.module}/code_zip/extractor_lambda.zip"
 }
 
 
@@ -20,13 +19,13 @@ data "archive_file" "extractor_lambda" {
 #   byte_length = 8
 
 #   keepers = {
-#     timestamp = timestamp() # force change on every execution
+#   timestamp = timestamp() # force change on every execution
 #   }
 # }
 
 # data "archive_file" "tester_lambda" {
 #   type        = "zip"
-#   source_file = "${path.module}/../src/tester_lambda.py"
+#   source_file = "${abspath(path.module)}/../src/tester_lambda.py"
 #   output_path = "${path.module}/../tester_lambda.${resource.random_id.id.dec}-zip"
 # }
 
