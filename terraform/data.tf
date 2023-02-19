@@ -3,12 +3,16 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 data "file" "tester_lambda" {
-  path = "${path.module}/../terraform/code_zip/tester_lambda.zip"
+  type        = "zip"
+  source_file = "${path.module}/../src/tester_lambda.py"
+  output_path = "${path.module}/../terraform/code_zip/tester_lambda.zip"
 }
 
 
 data "file" "extractor_lambda" {
-  path = "${path.module}/../terraform/code_zip/extractor_lambda.zip"
+  type        = "zip"
+  source_file = "${path.module}/../src/tester_lambda.py"
+  output_path = "${path.module}/../terraform/code_zip/extractor_lambda.zip"
 }
 
 
