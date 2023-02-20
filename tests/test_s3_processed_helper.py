@@ -1,0 +1,80 @@
+from src.s3_processed_helper import s3_list_buckets, s3_list_prefix_buckets, s3_setup_success, s3_upload_pqt_files, s3_upload_pqt_and_delete_csv_files_from_input_key
+import boto3
+from moto import mock_s3
+import os
+import pytest
+
+@mock_s3
+def test_single_s3_list_buckets():
+    s3 = boto3.client('s3')
+    s3.create_bucket(Bucket='my-test-bucket')
+    bucket_names = s3_list_buckets()
+    assert 'my-test-bucket' in bucket_names
+
+@mock_s3
+def test_multiple_s3_list_buckets():
+    s3 = boto3.client('s3')
+    s3.create_bucket(Bucket='my-test-bucket')
+    s3.create_bucket(Bucket='my-test-bucket-2')
+    bucket_names = s3_list_buckets()
+    assert 'my-test-bucket' in bucket_names
+    assert 'my-test-bucket-2' in bucket_names
+
+@mock_s3
+def test_bucket_list_for_prefix():
+    s3 = boto3.client('s3')
+    s3.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
+    s3.create_bucket(Bucket='my-test-bucket')
+    bucket_names = s3_list_prefix_buckets()
+    assert bucket_names == 'nc-de-databakers-csv-store-20202'
+
+@mock_s3
+def test_bucket_for_input_folder_if_bucket_is_prefixed():
+    s3 = boto3.client('s3')
+    s3.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
+    s3.put_object(Bucket='nc-de-databakers-csv-store-20202',
+                  Key='processed_csv_key/')
+    object_names = s3.list_objects(Bucket='nc-de-databakers-csv-store-20202')
+    assert "processed_csv_key" in object_names["Contents"][0]["Key"]
+
+@mock_s3
+def test_setup_success_txt_file_exists():
+    s3 = boto3.client('s3')
+    s3.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
+    s3.put_object(Bucket='nc-de-databakers-csv-store-20202', Key='processed_csv_key/')
+    s3res = boto3.resource('s3')
+    s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
+        './setup_success_csv_processed.txt', 'processed_csv_key/setup_success_csv_processed.txt')
+    assert s3_setup_success() == True
+
+@mock_s3
+def test_parquet_files_are_uploaded_successfully_to_the_processed_key_within_bucket():
+    s3cli = boto3.client('s3')
+    pqt_files = ['address.parquet', 'counterparty.parquet', 'currency.parquet', 'department.parquet', 'design.parquet','payment_type.parquet', 'payment.parquet', 'purchase_order.parquet', 'sales_order.parquet', 'staff.parquet', 'transaction.parquet']
+    s3cli.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
+    s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',Key='processed_csv_key/')
+    s3res = boto3.resource('s3')
+    s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
+        './setup_success_csv_processed.txt', 'processed_csv_key/setup_success_csv_processed.txt')
+    s3_upload_pqt_files()
+    objects = s3cli.list_objects(
+        Bucket='nc-de-databakers-csv-store-20202', Prefix='processed_csv_key/')['Contents']
+    keys = [object['Key'] for object in objects]
+    assert all(f'processed_csv_key/{file}' in keys for file in pqt_files)
+
+def test_upload_pqt_and_delete_input_csv_files():
+    s3cli = boto3.client('s3')
+    s3cli.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
+    s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
+                     Key='input_csv_key/')
+    s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
+                     Key='processed_csv_key/')
+    s3res = boto3.resource('s3')
+    s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
+        './setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
+    s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
+        './setup_success_csv_processed.txt', 'processed_csv_key/setup_success_csv_processed.txt')
+    s3_upload_pqt_and_delete_csv_files_from_input_key()
+    input_csv_objects = [obj.key for obj in s3res.Bucket('nc-de-databakers-csv-store-20202').objects.filter(Prefix='input_csv_key/')]
+    csv_count = sum([1 for obj in input_csv_objects if obj.endswith('.csv')])
+    assert csv_count == 0
