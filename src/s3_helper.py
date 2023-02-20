@@ -1,7 +1,6 @@
 import boto3
 from src.conn import lambda_handler
 import os
-from datetime import datetime as dt
 
 def s3_list_buckets():
     s3=boto3.client('s3')
