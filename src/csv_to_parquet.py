@@ -24,12 +24,12 @@ def list_files_to_convert():
   bucket = s3_parquet_prefix_buckets()
   list=s3.list_objects(Bucket=bucket)['Contents']
   for key in list:
-    s3.download_file(bucket, key['Key'], f'/tmp/{key["key"]}')
+    s3.download_file(bucket, key['Key'], f'./tmp/{key["Key"]}')
 
 def convert_csv_to_parquet():
-  file_list = glob.glob("/tmp/*.csv")
+  file_list = glob.glob("./tmp/*.csv")
   for file in file_list:
     filename = os.path.basename(file).split('.')[0]
     df = pd.read_csv(file)
-    df.to_parquet(f'/pqt_tmp/{filename}.parquet')
+    df.to_parquet(f'./pqt_tmp/{filename}.parquet')
   
