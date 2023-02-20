@@ -108,6 +108,12 @@ def test_logs_for_each_run_by_checking_log_line_count():
     with open("csv_export_completed.txt", 'r') as f:
         assert len(f.readlines()) == 4
 
+@mock_s3
+def test_latest_run_num_matches_final_run_in_csv_export_completed_file():
+    with open("run_number.txt") as file_1, open("csv_export_completed.txt") as file_2:
+        first_line = file_1.readline().strip()
+        last_line = file_2.readlines()[-1].strip()
+    assert last_line == f"run {first_line}"
 
 @mock_s3
 def test_uploads_csv_export_file_to_key_within_bucket():
@@ -149,3 +155,8 @@ def test_setup_unsuccessful_error_message():
     with pytest.raises(ValueError) as errinfo:
         s3_upload_csv_files()
     assert str(errinfo.value) == "Terraform deployment unsuccessful"
+
+if os.path.exists("run_number.txt"):
+    os.remove("run_number.txt")
+if os.path.exists("csv_export_completed.txt"):
+    os.remove("csv_export_completed.txt")

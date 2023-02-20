@@ -37,10 +37,15 @@ def s3_upload_csv_files():
 
 def create_csv_completed_text_file():
     s3_upload_csv_files()
+    if not os.path.exists("run_number.txt"):
+        with open("run_number.txt", "w") as rn_f:
+            rn_f.write("0")
+    with open("run_number.txt", "r+") as rn_f:
+        run_num = int(rn_f.read()) + 1
+        rn_f.seek(0)
+        rn_f.write(str(run_num))
     with open(f"csv_export_completed.txt", "a+") as f:
-        run_time = str(dt.now().strftime('%Y-%m-%d %H:%M:%S'))           
-        f.write(f'run on {run_time}\n')
-        f.close()
+        f.write(f'run {run_num}\n')
 
 def s3_upload_and_local_log():
     create_csv_completed_text_file()
