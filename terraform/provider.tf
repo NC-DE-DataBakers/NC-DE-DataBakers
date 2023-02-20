@@ -1,9 +1,9 @@
 terraform {
   cloud {
-    organization = "NC-kolkiewicz"
+    organization = "dee-terraform"
 
     workspaces {
-      name = "nc-de-databakers"
+      name = "NC-DE-DataBakers"
     }
   }
 }

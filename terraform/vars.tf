@@ -8,6 +8,11 @@ variable "extractor_lambda_name" {
   default = "data_extractor" #s3-file-reader
 }
 
+variable "conversion_lambda_name" {
+  type    = string
+  default = "data_converter" #s3-file-reader
+}
+
 variable "tester_lambda_name" {
   type    = string
   default = "tester_lambda" #s3-file-reader

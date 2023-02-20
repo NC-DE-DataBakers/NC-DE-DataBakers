@@ -10,6 +10,18 @@ resource "aws_lambda_function" "data_extractor" { #s3_file_reader
   source_code_hash = filebase64sha256("${path.module}/code_zip/extractor_lambda.zip") #${path.module}/function.zip
 }
 
+resource "aws_lambda_function_2" "data_extractor" { #s3_file_reader
+  # TO BE IMPLEMENTED
+  function_name    = var.conversion_lambda_name
+  s3_bucket        = aws_s3_bucket.code_bucket.bucket
+  s3_key           = "${var.conversion_lambda_name}_key/extractor_lambda.zip"
+  role             = aws_iam_role.conversion_lambda_role.arn
+  handler          = "reader.lambda_handler"
+  runtime          = "python3.9"
+  #depends_on       = [aws_cloudwatch_log_group.lambda_log_group]
+  source_code_hash = filebase64sha256("${path.module}/code_zip/extractor_lambda.zip") #${path.module}/function.zip
+}
+
 resource "aws_lambda_function" "tester_lambda" { #s3_file_reader
   # TO BE IMPLEMENTED
   function_name    = var.tester_lambda_name

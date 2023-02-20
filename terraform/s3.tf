@@ -1,6 +1,5 @@
-# SOMETHING WRONG IN THIS FILE
 resource "aws_s3_bucket" "code_bucket" {
-  bucket_prefix = "nc-de-databakers-code-valut-"
+  bucket_prefix = "nc-de-databakers-code-vault-"
 }
 
 resource "aws_s3_object" "extractor_lambda_code" {
