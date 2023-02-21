@@ -1,4 +1,4 @@
-from src.s3_processed_helper import s3_list_buckets, s3_list_prefix_buckets, s3_setup_success, s3_upload_pqt_files, s3_upload_pqt_and_delete_csv_files_from_input_key
+from src.s3_processed_helper import s3_list_buckets, s3_list_prefix_buckets, s3_setup_success, s3_upload_pqt_files, s3_upload_pqt_and_delete_csv_files_from_input_key, create_pqt_completed_txt_file, s3_pqt_upload_and_log
 import boto3
 from moto import mock_s3
 import os
@@ -78,3 +78,38 @@ def test_upload_pqt_and_delete_input_csv_files():
     input_csv_objects = [obj.key for obj in s3res.Bucket('nc-de-databakers-csv-store-20202').objects.filter(Prefix='input_csv_key/')]
     csv_count = sum([1 for obj in input_csv_objects if obj.endswith('.csv')])
     assert csv_count == 0
+
+def test_creates_pqt_export_completed_txt_file_if_files_are_uploaded():
+    s3cli = boto3.client('s3')
+    s3cli.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
+    s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
+                     Key='processed_csv_key/')
+    s3res = boto3.resource('s3')
+    s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
+        './setup_success_csv_processed.txt', 'processed_csv_key/setup_success_csv_processed.txt')
+    create_pqt_completed_txt_file()
+    assert os.path.isfile('pqt_export_completed.txt')
+
+@mock_s3
+def test_logs_for_each_run_by_checking_log_line_count():
+    s3cli = boto3.client('s3')
+    s3cli.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
+    s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
+                     Key='processed_csv_key/')
+    s3res = boto3.resource('s3')
+    s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
+        './setup_success_csv_processed.txt', 'processed_csv_key/setup_success_csv_processed.txt')
+    s3_pqt_upload_and_log()
+    with open("pqt_export_completed.txt", 'r') as f:
+        assert len(f.readlines()) == 2
+    s3_pqt_upload_and_log()
+    with open("pqt_export_completed.txt", 'r') as f:
+        assert len(f.readlines()) == 3
+    s3_pqt_upload_and_log()
+    with open("pqt_export_completed.txt", 'r') as f:
+        assert len(f.readlines()) == 4
+
+if os.path.exists("pqt_run_number.txt"):
+    os.remove("pqt_run_number.txt")
+if os.path.exists("pqt_export_completed.txt"):
+    os.remove("pqt_export_completed.txt")
