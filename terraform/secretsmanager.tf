@@ -13,9 +13,9 @@ resource "aws_iam_policy" "secrets_manager_policy" {
         {
           Sid    = "EnableAnotherAWSAccountToDescribeTheSecret",
           Effect = "Allow",
-          Principal = {
-            AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-          },
+          # Principal = {
+          #   AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+          # },
           Action   = "secretsmanager:DescribeSecret",
           Resource = "*"
         }
