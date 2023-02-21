@@ -1,12 +1,12 @@
-from moto import mock_s3
-import boto3
-import pytest
-from unittest.mock import patch
-import os
-import csv
 from src.csv_to_parquet import convert_csv_to_parquet, list_files_to_convert, update_csv_conversion_file
+from unittest.mock import patch
 import src.csv_to_parquet
+from moto import mock_s3
 import pandas as pd
+import pytest
+import boto3
+import csv
+import os
 
 @mock_s3
 def test_connection_to_bucket():
@@ -96,7 +96,7 @@ def test_csv_conversion_run_number_incremented():
   s3.upload_file("./csv_conversion.txt", bucket, "processed_csv_key/csv_conversion.txt")
   with patch ('src.csv_to_parquet.s3_list_buckets', return_value=[bucket]):
     update_csv_conversion_file()
-    
+
   with open('./tmp/csv_conversion.txt', 'r') as file:
     contents = file.read()
     assert contents == 'Run 1'
@@ -105,3 +105,7 @@ def test_csv_conversion_run_number_incremented():
   with open('./tmp/csv_conversion_s3.txt', 'r') as file:
     contents = file.read()
     assert contents == 'Run 1'
+  os.remove('./tmp/csv_conversion.txt')
+  os.remove('./tmp/csv_conversion_s3.txt')
+  assert os.path.isfile("./tmp/csv_conversion.txt") is False
+  assert os.path.isfile("./tmp/csv_conversion_s3.txt") is False
