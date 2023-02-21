@@ -71,6 +71,16 @@ data "aws_iam_policy_document" "cw_document" {
   }
 }
 
+# data "aws_iam_policy_document" "secrets_manager" {
+#   statement {
+#     actions = ["secretsmanager:*"]
+
+#     resources = [aws_secretsmanager_secret.sm_totesys.arn]
+
+#     effect = "Allow"
+#   }
+# }
+
 resource "aws_iam_policy" "s3_read_policy" {
   name_prefix = "s3-policy-${var.extractor_lambda_name}-"
   policy      = data.aws_iam_policy_document.s3_read_document.json
@@ -86,6 +96,10 @@ resource "aws_iam_policy" "cw_policy" {
   policy      = data.aws_iam_policy_document.cw_document.json
 }
 
+# resource "aws_iam_policy" "secrets_manager_policy" {
+#   name_prefix = "secretsmanager-policy-${var.extractor_lambda_name}-"
+#   policy      = data.aws_iam_policy_document.secrets_manager.json
+# }
 
 resource "aws_iam_role_policy_attachment" "lambda_s3_read_policy_attachment" {
   role       = aws_iam_role.extractor_lambda_role.name
@@ -102,3 +116,27 @@ resource "aws_iam_role_policy_attachment" "lambda_cw_policy_attachment" {
   policy_arn = aws_iam_policy.cw_policy.arn
 }
 
+# resource "aws_iam_policy_attachment" "lambda_secretsmanager_policy_attachment" {
+#   name       = "secrets_manager_policy_attachment"
+#   roles      = [aws_iam_role.extractor_lambda_role.name]
+#   users      = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+#   policy_arn = aws_iam_policy.secrets_manager_policy.arn
+# }
+
+# resource "aws_iam_role_policy" "sm_policy" {
+#   name = "sm_access_permissions"
+#   role = aws_iam_role.extractor_lambda_role.id
+
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Action = [
+#           "secretsmanager:*",
+#         ]
+#         Effect   = "Allow"
+#         Resource = "*"
+#       },
+#     ]
+#   })
+# }
