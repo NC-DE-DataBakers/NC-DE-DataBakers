@@ -1,4 +1,4 @@
-from src.s3_processed_helper import s3_list_buckets, s3_list_prefix_csv_buckets,s3_list_prefix_parquet_buckets, s3_csv_processed_setup_success, s3_upload_pqt_files_to_csv_processed_key, s3_upload_pqt_and_delete_csv_files_from_input_key, create_pqt_completed_txt_file, s3_pqt_upload_and_log, s3_pqt_input_setup_success,s3_upload_pqt_files_to_pqt_input_key, s3_upload_pqt_and_delete_pqt_files_from_processed_key
+from src.s3_processed_helper import s3_list_buckets, s3_list_prefix_csv_buckets,s3_list_prefix_parquet_buckets, s3_csv_processed_setup_success, s3_upload_pqt_files_to_csv_processed_key, s3_upload_pqt_and_delete_csv_files_from_input_key,s3_create_csv_processed_completed_txt_file, s3_create_pqt_input_completed_txt_file, s3_csv_processed_upload_and_log, s3_pqt_input_setup_success,s3_upload_pqt_files_to_pqt_input_key, s3_upload_pqt_and_delete_pqt_files_from_processed_key, s3_pqt_input_upload_and_log
 import boto3
 from moto import mock_s3
 import os
@@ -140,14 +140,13 @@ def test_upload_pqt_to_processed_csv_and_delete_input_csv_files():
         './setup_success_csv_processed.txt', 'processed_csv_key/setup_success_csv_processed.txt')
     s3res.Bucket('nc-de-databakers-parquet-store-20202').upload_file(
         './setup_success_parquet_input.txt', 'input_parquet_key/setup_success_parquet_input.txt')
-    s3_upload_pqt_and_delete_csv_files_from_input_key()
     s3_upload_pqt_and_delete_pqt_files_from_processed_key()
     processed_csv_objects = [obj.key for obj in s3res.Bucket('nc-de-databakers-csv-store-20202').objects.filter(Prefix='processed_csv_key/')]
     pqt_count = sum([1 for obj in processed_csv_objects if obj.endswith('.parquet')])
     assert pqt_count == 0
 
 @mock_s3
-def test_creates_pqt_export_completed_txt_file_if_files_are_uploaded():
+def test_creates_csv_processed_export_completed_txt_file_if_files_are_uploaded():
     s3cli = boto3.client('s3')
     s3cli.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
     s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
@@ -155,11 +154,11 @@ def test_creates_pqt_export_completed_txt_file_if_files_are_uploaded():
     s3res = boto3.resource('s3')
     s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
         './setup_success_csv_processed.txt', 'processed_csv_key/setup_success_csv_processed.txt')
-    create_pqt_completed_txt_file()
-    assert os.path.isfile('pqt_export_completed.txt')
+    s3_create_csv_processed_completed_txt_file()
+    assert os.path.isfile('csv_processed_export_completed.txt')
 
 @mock_s3
-def test_logs_for_each_run_by_checking_log_line_count():
+def test_logs_for_each_csv_processed_run_by_checking_log_line_count():
     s3cli = boto3.client('s3')
     s3cli.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
     s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
@@ -167,37 +166,105 @@ def test_logs_for_each_run_by_checking_log_line_count():
     s3res = boto3.resource('s3')
     s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
         './setup_success_csv_processed.txt', 'processed_csv_key/setup_success_csv_processed.txt')
-    s3_pqt_upload_and_log()
-    with open("pqt_export_completed.txt", 'r') as f:
+    s3_csv_processed_upload_and_log()
+    with open("csv_processed_export_completed.txt", 'r') as f:
         assert len(f.readlines()) == 2
-    s3_pqt_upload_and_log()
-    with open("pqt_export_completed.txt", 'r') as f:
+    s3_csv_processed_upload_and_log()
+    with open("csv_processed_export_completed.txt", 'r') as f:
         assert len(f.readlines()) == 3
-    s3_pqt_upload_and_log()
-    with open("pqt_export_completed.txt", 'r') as f:
+    s3_csv_processed_upload_and_log()
+    with open("csv_processed_export_completed.txt", 'r') as f:
         assert len(f.readlines()) == 4
 
 @mock_s3
-def test_latest_run_num_matches_final_run_in_pqt_export_completed_file():
-    with open("pqt_run_number.txt") as file_1, open("pqt_export_completed.txt") as file_2:
+def test_csv_processed_latest_run_num_matches_final_run_in_csv_processed_export_completed_file():
+    with open("csv_processed_run_number.txt") as file_1, open("csv_processed_export_completed.txt") as file_2:
         first_line = file_1.readline().strip()
         last_line = file_2.readlines()[-1].strip()
     assert last_line == f"run {first_line}"
 
 @mock_s3
-def test_uploads_pqt_export_file_to_key_within_bucket():
+def test_uploads_csv_processed_export_file_to_key_within_bucket():
     s3cli = boto3.client('s3')
+    s3res = boto3.resource('s3')
     s3cli.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
     s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
                      Key='processed_csv_key/')
-    s3res = boto3.resource('s3')
     s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
         './setup_success_csv_processed.txt', 'processed_csv_key/setup_success_csv_processed.txt')
-    s3_pqt_upload_and_log()
+    s3_csv_processed_upload_and_log()
     objects = s3cli.list_objects(
         Bucket='nc-de-databakers-csv-store-20202', Prefix='processed_csv_key/')['Contents']
     keys = [object['Key'] for object in objects]
-    assert 'processed_csv_key/pqt_export_completed.txt' in keys
+    assert 'processed_csv_key/csv_processed_export_completed.txt' in keys
+
+@mock_s3
+def test_creates_pqt_input_export_completed_txt_file_if_files_are_uploaded():
+    s3cli = boto3.client('s3')
+    s3res = boto3.resource('s3')
+    s3cli.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
+    s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
+                     Key='processed_csv_key/')
+    s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
+        './setup_success_csv_processed.txt', 'processed_csv_key/setup_success_csv_processed.txt')
+    s3cli.create_bucket(Bucket='nc-de-databakers-parquet-store-20202')
+    s3cli.put_object(Bucket='nc-de-databakers-parquet-store-20202',
+                     Key='input_parquet_key/')
+    s3res.Bucket('nc-de-databakers-parquet-store-20202').upload_file(
+        './setup_success_parquet_input.txt', 'input_parquet_key/setup_success_parquet_input.txt')
+    s3_create_pqt_input_completed_txt_file()
+    assert os.path.isfile('pqt_input_export_completed.txt')
+
+@mock_s3
+def test_logs_for_each_pqt_input_run_by_checking_log_line_count():
+    s3cli = boto3.client('s3')
+    s3res = boto3.resource('s3')
+    s3cli.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
+    s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
+                     Key='processed_csv_key/')
+    s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
+        './setup_success_csv_processed.txt', 'processed_csv_key/setup_success_csv_processed.txt')
+    s3cli.create_bucket(Bucket='nc-de-databakers-parquet-store-20202')
+    s3cli.put_object(Bucket='nc-de-databakers-parquet-store-20202',
+                     Key='input_parquet_key/')
+    s3res.Bucket('nc-de-databakers-parquet-store-20202').upload_file(
+        './setup_success_parquet_input.txt', 'input_parquet_key/setup_success_parquet_input.txt')
+    s3_pqt_input_upload_and_log()
+    with open("pqt_input_export_completed.txt", 'r') as f:
+        assert len(f.readlines()) == 2
+    s3_pqt_input_upload_and_log()
+    with open("pqt_input_export_completed.txt", 'r') as f:
+        assert len(f.readlines()) == 3
+    s3_pqt_input_upload_and_log()
+    with open("pqt_input_export_completed.txt", 'r') as f:
+        assert len(f.readlines()) == 4
+
+@mock_s3
+def test_csv_processed_latest_run_num_matches_final_run_in_csv_processed_export_completed_file():
+    with open("csv_processed_run_number.txt") as file_1, open("csv_processed_export_completed.txt") as file_2:
+        first_line = file_1.readline().strip()
+        last_line = file_2.readlines()[-1].strip()
+    assert last_line == f"run {first_line}"
+
+@mock_s3
+def test_uploads_pqt_input_export_file_to_key_within_bucket():
+    s3cli = boto3.client('s3')
+    s3res = boto3.resource('s3')
+    s3cli.create_bucket(Bucket='nc-de-databakers-csv-store-20202')
+    s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
+                     Key='processed_csv_key/')
+    s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
+        './setup_success_csv_processed.txt', 'processed_csv_key/setup_success_csv_processed.txt')
+    s3cli.create_bucket(Bucket='nc-de-databakers-parquet-store-20202')
+    s3cli.put_object(Bucket='nc-de-databakers-parquet-store-20202',
+                     Key='input_parquet_key/')
+    s3res.Bucket('nc-de-databakers-parquet-store-20202').upload_file(
+        './setup_success_parquet_input.txt', 'input_parquet_key/setup_success_parquet_input.txt')
+    s3_pqt_input_upload_and_log()
+    objects = s3cli.list_objects(
+        Bucket='nc-de-databakers-parquet-store-20202', Prefix='input_parquet_key/')['Contents']
+    keys = [object['Key'] for object in objects]
+    assert 'input_parquet_key/pqt_input_export_completed.txt' in keys
 
 @mock_s3
 def test_list_csv_prefix_buckets_raises_exception_when_there_are_no_buckets():
@@ -245,7 +312,11 @@ def test_setup_unsuccessful_error_message_for_parquet_input():
         s3_upload_pqt_files_to_pqt_input_key()
     assert str(errinfo.value) == "ERROR: Terraform deployment unsuccessful"
 
-if os.path.exists("pqt_run_number.txt"):
-    os.remove("pqt_run_number.txt")
-if os.path.exists("pqt_export_completed.txt"):
-    os.remove("pqt_export_completed.txt")
+if os.path.exists("csv_processed_run_number.txt"):
+    os.remove("csv_processed_run_number.txt")
+if os.path.exists("csv_processed_export_completed.txt"):
+    os.remove("csv_processed_export_completed.txt")
+if os.path.exists("pqt_input_run_number.txt"):
+    os.remove("pqt_input_run_number.txt")
+if os.path.exists("pqt_input_export_completed.txt"):
+    os.remove("pqt_input_export_completed.txt")
