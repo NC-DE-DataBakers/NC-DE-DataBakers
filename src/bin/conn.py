@@ -58,7 +58,7 @@ def conn_db():
     except Exception as error:
         return f"ERROR: {error}"
 
-def name_fetcher():
+def db_tables_fetcher():
     """This PSQL query retrieves all public tables, within the ToteSys database, in this instance.
     Running the query, the results are stored in a variable, table_names.
     
@@ -80,7 +80,7 @@ def name_fetcher():
     except Exception as error:
         return f'ERROR: {error}'
 
-def lambda_handler():
+def put_tables_to_csv():
     """Using the os library, a new directory 'tmp' is created providing it doesn't already exist.
 
     Using a for loop, we will access the table_names variable which contains tuple of each table.
@@ -97,7 +97,7 @@ def lambda_handler():
     if not os.path.exists("tmp"):
         os.makedirs("tmp")
     
-    table_names = name_fetcher()
+    table_names = db_tables_fetcher()
     for table_name in table_names:
         try:
             query = f"SELECT * FROM {table_name[0]}"
@@ -116,4 +116,3 @@ def lambda_handler():
             return f'ERROR: {error}'   
     conn_db().close()
 
-lambda_handler()
