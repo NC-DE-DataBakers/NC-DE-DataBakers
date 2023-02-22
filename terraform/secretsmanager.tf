@@ -1,5 +1,5 @@
 resource "aws_secretsmanager_secret" "sm_totesys" {
-  name = "totesys_creds1"
+  name   = "totesys_creds1"
   policy = <<POLICY
             {
             "Version": "2012-10-17",
@@ -34,7 +34,7 @@ resource "aws_iam_policy" "secrets_manager_policy" {
 resource "aws_secretsmanager_secret_policy" "sm_policy" {
   secret_arn = aws_secretsmanager_secret.sm_totesys.arn
 
-   policy = <<POLICY
+  policy = <<POLICY
             {
             "Version": "2012-10-17",
             "Statement": [
@@ -51,7 +51,7 @@ resource "aws_secretsmanager_secret_policy" "sm_policy" {
             }
         POLICY
 }
-        
+
 
 resource "aws_secretsmanager_secret_version" "sm_totesys" {
   secret_id     = aws_secretsmanager_secret.sm_totesys.id
