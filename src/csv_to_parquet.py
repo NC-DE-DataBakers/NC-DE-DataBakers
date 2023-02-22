@@ -80,9 +80,9 @@ def convert_csv_to_parquet():
     try:
       df.to_parquet(f'./pqt_tmp/{filename}.parquet')
     except pd.errors.EmptyDataError as EDE:
-      raise f'ERROR: {EDE}'
+      raise ValueError(f'ERROR: {EDE}')
     except Exception:
-      raise f'ERROR: {Exception}'
+      raise ValueError(f'ERROR: {Exception}')
 
 def update_csv_conversion_file():
   """ 

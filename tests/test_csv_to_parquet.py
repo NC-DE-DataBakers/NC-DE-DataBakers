@@ -8,6 +8,9 @@ import boto3
 import csv
 import os
 
+if not os.path.isdir('./tmp'):
+    os.makedirs('./tmp')
+
 @mock_s3
 def test_connection_to_bucket():
   s3=boto3.client('s3')
@@ -81,7 +84,7 @@ def test_csv_conversion_file_downloaded():
   s3.upload_file("./csv_conversion.txt", bucket, "processed_csv_key/csv_conversion.txt")
   with patch ('src.csv_to_parquet.s3_list_buckets', return_value=[bucket]):
     update_csv_conversion_file()
-    
+
   assert os.path.isfile("./tmp/csv_conversion.txt")
   os.remove('./tmp/csv_conversion.txt')
   assert os.path.isfile("./tmp/csv_conversion.txt") is False
@@ -91,8 +94,8 @@ def test_csv_conversion_run_number_incremented():
   s3 = boto3.client("s3")
   bucket = 'nc-de-databakers-csv-store-1010'
   s3.create_bucket(Bucket=bucket)
-  with open('./csv_conversion.txt', 'wb') as file:
-    file.write(b'Run 0')
+  with open('./csv_conversion.txt', 'w') as file:
+    file.write('Run 0')
   s3.upload_file("./csv_conversion.txt", bucket, "processed_csv_key/csv_conversion.txt")
   with patch ('src.csv_to_parquet.s3_list_buckets', return_value=[bucket]):
     update_csv_conversion_file()
@@ -109,3 +112,9 @@ def test_csv_conversion_run_number_incremented():
   os.remove('./tmp/csv_conversion_s3.txt')
   assert os.path.isfile("./tmp/csv_conversion.txt") is False
   assert os.path.isfile("./tmp/csv_conversion_s3.txt") is False
+
+def test_cleanup():
+  files = os.listdir('./tmp')
+  for file in files:
+          os.remove(f'./tmp/{file}')
+  os.removedirs('./tmp')
