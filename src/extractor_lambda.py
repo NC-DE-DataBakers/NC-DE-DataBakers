@@ -66,7 +66,8 @@ def conn_db():
     """
     sm = boto3.client('secretsmanager')
     try:
-        secret_value = sm.get_secret_value(SecretId="totesys_creds")['SecretString']
+        secret_value = sm.get_secret_value(SecretId="temp_totesys_creds_123456")['SecretString']
+        #secret_value = sm.get_secret_value(SecretId="totesys_creds")['SecretString']
     except sm.exceptions.ResourceNotFoundException as RNFE:
         return 'ERROR: Secrets Manager can''t find the specified secret.'
 
@@ -139,9 +140,25 @@ def put_tables_to_csv():
     for table_name in table_names:
         try:
             query = f"SELECT * FROM {table_name[0]}"
+            columns = f"""SELECT attname, format_type(atttypid, atttypmod) AS type
+                        FROM   pg_attribute
+                        WHERE  attrelid = '{table_name[0]}'::regclass
+                        AND    attnum > 0
+                        AND    NOT attisdropped
+                        ORDER  BY attnum;"""
+            columns_data = conn_db().run(columns)
+            column_names = []
+            for col in columns_data:
+                column_names.append(col[0])
+
+            
             table_data = conn_db().run(query)
             with open(f"tmp/{table_name[0]}.csv", "w", newline="") as csvfile:
+                w = csv.DictWriter(csvfile, column_names)
+                if csvfile.tell() == 0:
+                    w.writeheader()
                 writer = csv.writer(csvfile)
+                # writer.writerows(column_names)
                 writer.writerows(table_data)
         except IndexError:
             raise ValueError('ERROR: SQL query invalid, nothing with that table name')

@@ -143,7 +143,9 @@ def test_setup_success_txt_file_exists():
         './tmp/setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
     input_bucket = get_csv_store_bucket()
     assert s3_setup_success(input_bucket) == True
-    os.remove('./tmp/setup_success_csv_input.txt')
+    files = os.listdir('./tmp')
+    for file in files:
+        os.remove(f'./tmp/{file}')
     os.removedirs('./tmp')
 
 @mock_s3
@@ -178,10 +180,9 @@ def test_csv_files_are_uploaded_successfully_to_the_input_key_within_bucket():
     keys = [object['Key'] for object in objects]
     assert all(f'input_csv_key/{file}' in keys for file in csv_files)
 
-    os.remove('./tmp/address.csv')
-    os.remove('./tmp/counterparty.csv')
-    os.remove('./tmp/currency.csv')
-    os.remove('./tmp/setup_success_csv_input.txt')
+    files = os.listdir('./tmp')
+    for file in files:
+        os.remove(f'./tmp/{file}')
     os.removedirs('./tmp')
     assert os.path.isfile("./tmp/address.csv'") is False
     assert os.path.isfile("./tmp/counterparty.csv") is False
