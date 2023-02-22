@@ -1,17 +1,16 @@
 """Defines lambda function to handle creation of S3 text object."""
 
-import logging
-import boto3
 from botocore.exceptions import ClientError
-import os
 from pg8000 import Connection
-import csv
+import logging
 import pg8000
+import boto3
 import json
+import csv
+import os
 
 logger = logging.getLogger('MyLogger')
 logger.setLevel(logging.INFO)
-
 
 def lambda_handler(event, context):
     """Handles S3 PutObject event and logs the contents of file.
@@ -32,6 +31,8 @@ def lambda_handler(event, context):
         result in an informative log message.
     """
     try:
+        if not os.path.isdir('./tmp'):
+            os.makedirs('./tmp')
         # call DB and save CSV files
         put_tables_to_csv()
 
@@ -40,7 +41,11 @@ def lambda_handler(event, context):
         s3_setup_success(input_bucket)
         s3_upload_csv_files(input_bucket)
         update_csv_export_file(input_bucket)
-
+        
+        files = os.listdir('./tmp')
+        for file in files:
+            os.remove(f'./tmp/{file}')
+        os.removedirs('./tmp')
     except Exception as error:
         logger.error(error)
 
@@ -182,7 +187,8 @@ def s3_setup_success(input_bucket):
     for object in objects:
         if object['Key'] == 'input_csv_key/setup_success_csv_input.txt':
             return True
-    raise ValueError('ERROR: Initial Setup Key and File in nc-de-databakers-csv-store- are missing!')  
+    return False
+    # raise ValueError('ERROR: Initial Setup Key and File in nc-de-databakers-csv-store- are missing!')  
 
 def s3_upload_csv_files(input_bucket):
     s3=boto3.resource('s3')
@@ -197,7 +203,7 @@ def s3_upload_csv_files(input_bucket):
         else:
             raise ValueError('ERROR: can''t locate temp directory to read CSV files!')
     else:
-        raise ValueError("Terraform deployment unsuccessful")
+        raise ValueError("ERROR: Terraform deployment unsuccessful")
     
 def update_csv_export_file(bucket):
   """ 

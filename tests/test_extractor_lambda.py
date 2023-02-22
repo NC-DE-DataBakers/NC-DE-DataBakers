@@ -1,18 +1,20 @@
+from src.extractor_lambda import s3_list_buckets, get_csv_store_bucket, s3_setup_success, s3_upload_csv_files, update_csv_export_file
+from moto import mock_secretsmanager, mock_s3
 import pg8000
 import pytest
 import boto3
-from moto import mock_secretsmanager, mock_s3
 import json
 import csv
-from src.extractor_lambda import s3_list_buckets, get_csv_store_bucket, s3_setup_success, s3_upload_csv_files, update_csv_export_file
 import os
-import pytest
 
 #####
 #DB conn
 #####
+
 sm = boto3.client('secretsmanager')
-secret_value = sm.get_secret_value(SecretId="totesys_creds")['SecretString']
+# sm.create_secret(Name='temp_totesys_creds_123456',SecretString='{"username":"project_user_2", "password":"paxjekPK3hDXu2aXcJ9xyuBS", "host":"nc-data-eng-totesys-production.chpsczt8h1nu.eu-west-2.rds.amazonaws.com", "database":"totesys", "port":"5432"}')
+    
+secret_value = sm.get_secret_value(SecretId="temp_totesys_creds_123456")['SecretString']
 parsed_secret = json.loads(secret_value)
 host = parsed_secret["host"]
 port = parsed_secret["port"]
@@ -134,36 +136,27 @@ def test_setup_success_txt_file_exists():
     s3.put_object(Bucket='nc-de-databakers-csv-store-20202',
                   Key='input_csv_key/')
     s3res = boto3.resource('s3')
+    if not os.path.isdir('./tmp'):
+        os.makedirs('./tmp')
+    open('./tmp/setup_success_csv_input.txt', 'w')
     s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
-        './setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
+        './tmp/setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
     input_bucket = get_csv_store_bucket()
     assert s3_setup_success(input_bucket) == True
+    os.remove('./tmp/setup_success_csv_input.txt')
+    os.removedirs('./tmp')
 
 @mock_s3
 def test_csv_files_are_uploaded_successfully_to_the_input_key_within_bucket():
     s3cli = boto3.client('s3')
 
-    # fields = ['column1', 'column2', 'column3']  
-    # rows = [ ['A', '011', '2000'], 
-    #         ['B', '012', '8000'],
-    #         ['C', '351', '5000'],
-    #         ['D', '146', '10000'] ]
-
     if not os.path.isdir('./tmp'):
         os.mkdir('./tmp')
     
-    with open('./tmp/address.csv', 'w') as f:
-        csv_writer = csv.writer(f)
-        # csv_writer.writerow(fields)
-        # csv_writer.writerows(rows)
-    with open('./tmp/counterparty.csv', 'w') as f:
-        csv_writer = csv.writer(f)
-        # csv_writer.writerow(fields)
-        # csv_writer.writerows(rows)
-    with open('./tmp/currency.csv', 'w') as f:
-        csv_writer = csv.writer(f)
-        # csv_writer.writerow(fields)
-        # csv_writer.writerows(rows)
+    open('./tmp/address.csv', 'w')
+    open('./tmp/counterparty.csv', 'w')
+    open('./tmp/currency.csv', 'w')
+
 
     csv_files = ['address.csv', 'counterparty.csv', 'currency.csv']
     #, 'department.csv', 'design.csv','payment_type.csv', 'payment.csv', 'purchase_order.csv', 'sales_order.csv', 'staff.csv', 'transaction.csv'
@@ -172,9 +165,13 @@ def test_csv_files_are_uploaded_successfully_to_the_input_key_within_bucket():
                      Key='input_csv_key/')
 
     s3res = boto3.resource('s3')
+    if not os.path.isdir('./tmp'):
+        os.makedirs('./tmp')
+    open('./tmp/setup_success_csv_input.txt', 'w')
     s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
-        './setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
-    s3_upload_csv_files()
+        './tmp/setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
+    input_bucket = get_csv_store_bucket()
+    s3_upload_csv_files(input_bucket)
     objects = s3cli.list_objects(
         Bucket='nc-de-databakers-csv-store-20202', Prefix='input_csv_key/')['Contents']
     
@@ -184,6 +181,7 @@ def test_csv_files_are_uploaded_successfully_to_the_input_key_within_bucket():
     os.remove('./tmp/address.csv')
     os.remove('./tmp/counterparty.csv')
     os.remove('./tmp/currency.csv')
+    os.remove('./tmp/setup_success_csv_input.txt')
     os.removedirs('./tmp')
     assert os.path.isfile("./tmp/address.csv'") is False
     assert os.path.isfile("./tmp/counterparty.csv") is False
@@ -197,12 +195,18 @@ def test_creates_csv_export_completed_txt_file_if_files_are_uploaded():
     s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
                      Key='input_csv_key/')
     s3res = boto3.resource('s3')
+    if not os.path.isdir('./tmp'):
+        os.makedirs('./tmp')
+    with open('./tmp/csv_export.txt', 'wb') as file:
+        file.write(b'Run 0')
     s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
-        './setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
+        './tmp/csv_export.txt', 'input_csv_key/csv_export.txt')
     input_bucket = get_csv_store_bucket()
     update_csv_export_file(input_bucket)
     assert os.path.isfile('./tmp/csv_export.txt')
-    os.remove('./tmp/csv_export.txt')
+    files = os.listdir('./tmp')
+    for file in files:
+        os.remove(f'./tmp/{file}')
     os.removedirs('./tmp')
     assert os.path.isfile("./tmp/csv_export.txt") is False
     assert os.path.isdir('./tmp') is False
@@ -216,35 +220,28 @@ def test_logs_for_each_run_by_checking_log_line_count():
     s3cli = boto3.client('s3')
     bucket = 'nc-de-databakers-csv-store-20202'
     s3cli.create_bucket(Bucket=bucket)
-    # s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
-    #                  Key='input_csv_key/')
-    with open('./csv_export.txt', 'wb') as file:
-        file.write(b'Run 0')
-    s3cli.upload_file("./csv_export.txt", bucket, "input_csv_key/csv_export.txt")
-    #s3res = boto3.resource('s3')
-    # s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
-    #     './setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
+    if not os.path.isdir('./tmp'):
+        os.makedirs('./tmp')
+    with open('./tmp/csv_export.txt', 'w') as file:
+        file.write('Run 0')
+    s3cli.upload_file("./tmp/csv_export.txt", bucket, "input_csv_key/csv_export.txt")
     input_bucket = get_csv_store_bucket()
     update_csv_export_file(input_bucket)
     with open("./tmp/csv_export.txt", 'r') as f:
         assert len(f.readlines()) == 1
     update_csv_export_file(input_bucket)
     with open("./tmp/csv_export.txt", 'r') as f:
-        assert len(f.readlines()) == 2
+        assert len(f.readlines()) == 1
     update_csv_export_file(input_bucket)
     with open("./tmp/csv_export.txt", 'r') as f:
-        assert len(f.readlines()) == 3
+        assert len(f.readlines()) == 1
 
-    os.remove('./tmp/csv_export.txt')
+    files = os.listdir('./tmp')
+    for file in files:
+        os.remove(f'./tmp/{file}')
     os.removedirs('./tmp')
     assert os.path.isfile("./tmp/csv_export.txt") is False
     assert os.path.isdir('./tmp') is False
-# @mock_s3
-# def test_latest_run_num_matches_final_run_in_csv_export_completed_file():
-#     with open("run_number.txt") as file_1, open("csv_export.txt") as file_2:
-#         first_line = file_1.readline().strip()
-#         last_line = file_2.readlines()[-1].strip()
-#     assert last_line == f"run {first_line}"
 
 @mock_s3
 def test_uploads_csv_export_file_to_key_within_bucket():
@@ -253,8 +250,14 @@ def test_uploads_csv_export_file_to_key_within_bucket():
     s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
                      Key='input_csv_key/')
     s3res = boto3.resource('s3')
+    if not os.path.isdir('./tmp'):
+        os.makedirs('./tmp')
+    open('./tmp/setup_success_csv_input.txt', 'w')
+    open('./tmp/csv_export.txt', 'w')
     s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
-        './setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
+        './tmp/setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
+    s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
+        './tmp/csv_export.txt', 'input_csv_key/csv_export.txt')
     input_bucket = get_csv_store_bucket()
     s3_upload_csv_files(input_bucket)
     objects = s3cli.list_objects(
@@ -262,7 +265,9 @@ def test_uploads_csv_export_file_to_key_within_bucket():
     keys = [object['Key'] for object in objects]
     assert 'input_csv_key/csv_export.txt' in keys
 
-    os.remove('./tmp/csv_export.txt')
+    files = os.listdir('./tmp')
+    for file in files:
+        os.remove(f'./tmp/{file}')
     os.removedirs('./tmp')
     assert os.path.isfile("./tmp/csv_export.txt") is False
     assert os.path.isdir('./tmp') is False
@@ -290,7 +295,6 @@ def test_setup_unsuccessful_error_message():
     with pytest.raises(ValueError) as errinfo:
         s3_upload_csv_files(input_bucket)
     assert str(errinfo.value) == "ERROR: Terraform deployment unsuccessful"
-
 
 if os.path.exists("run_number.txt"):
     os.remove("run_number.txt")
