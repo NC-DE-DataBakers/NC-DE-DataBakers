@@ -31,3 +31,18 @@ s3_helper.py
   No buckets have been created - Error raised: 'No buckets found'
   The CSV store bucket has not been created - Error raised: 'Prefix not found in any bucket'
   Terraform has not been deployed - Error: 'Terraform deployment unsuccessful'
+
+s3_processed_helper.py
+  Using boto3, we are able to access AWS directly. This enables us to upload the converted parquet files to the parquet input key, within the CSV store bucket, by implementing Python logic.
+
+  Ensuring the setup_success_csv_input.txt file exists, indicates the terraform has been deployed succesfully. The converted Parquet files saved (locally) can then be uploaded to the input key, within the Parquet store bucket.
+
+  After completion of uploading the Parquet files, a text file parquet_export_completed.txt, containing the most recent run number is created and uploaded to the input key, within the Parquet store bucket. The latest run number can be found in the run_number.txt file.
+
+  Thereafter, the CSVs from the csv bucket will be moved from input to processed and a log will be created and updated in the csv processed once the files are moved in.
+
+  Common error-handling includes:
+  No buckets have been created - Error raised: 'No buckets found'
+  The CSV store bucket has not been created - Error raised: 'Prefix not found in any bucket'
+  The Parquet store bucket has not been created - Error raised: 'Prefix not found in any bucket'
+  Terraform has not been deployed - Error: 'Terraform deployment unsuccessful'
