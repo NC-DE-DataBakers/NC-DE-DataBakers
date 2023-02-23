@@ -50,5 +50,3 @@ def s3_upload_and_local_log():
     create_csv_completed_text_file()
     s3=boto3.resource('s3')
     s3.Bucket(s3_list_prefix_buckets()).upload_file('./csv_export_completed.txt', 'input_csv_key/csv_export_completed.txt')
-
-s3_upload_and_local_log()

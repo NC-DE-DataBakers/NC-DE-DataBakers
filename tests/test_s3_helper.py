@@ -85,9 +85,6 @@ def test_creates_csv_export_completed_txt_file_if_files_are_uploaded():
     assert os.path.isfile('csv_export_completed.txt')
 
 
-"""Before running the test_logs_for_each_run_by_checking_log_line_count test, ensure the csv_export_completed.txt does not already exist.
-"""
-
 
 @mock_s3
 def test_logs_for_each_run_by_checking_log_line_count():
