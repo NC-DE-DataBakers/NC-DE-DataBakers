@@ -1,6 +1,6 @@
 from src.dim_counterparty import make_dimension
-import pytest
 import pandas as pd
+import pytest
 import os
 
 if not os.path.isdir('./tmp'):
