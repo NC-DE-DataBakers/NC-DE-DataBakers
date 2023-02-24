@@ -1,6 +1,4 @@
 import pandas as pd
-from src.extractor_lambda import put_tables_to_csv
-put_tables_to_csv()
 
 def make_dimension():
   """
@@ -43,7 +41,6 @@ def make_dimension():
   except Exception as error:
     raise ValueError(f'ERROR: {error}')
   
-make_dimension()
 
   
   
