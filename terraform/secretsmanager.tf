@@ -1,4 +1,5 @@
 resource "aws_secretsmanager_secret" "sm_totesys" {
+<<<<<<< Updated upstream
   name   = "totesys_creds1"
   policy = <<POLICY
             {
@@ -13,6 +14,28 @@ resource "aws_secretsmanager_secret" "sm_totesys" {
                 ]
             }
         POLICY
+=======
+  name = "totesys_creds"
+  policy = aws_iam_policy.secrets_manager_policy.policy
+}
+resource "aws_iam_policy" "secrets_manager_policy" {
+  name_prefix = "secretsmanager-policy-${var.extractor_lambda_name}-"
+  policy = jsonencode(
+    {
+      Version = "2012-10-17",
+      Statement = [
+        {
+          Sid    = "EnableAnotherAWSAccountToDescribeTheSecret",
+          Effect = "Allow",
+          Principal = {
+            AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+          },
+          Action   = "secretsmanager:DescribeSecret",
+          Resource = "*"
+        }
+      ]
+  })
+>>>>>>> Stashed changes
 }
 
 resource "aws_iam_policy" "secrets_manager_policy" {

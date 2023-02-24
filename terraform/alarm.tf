@@ -1,15 +1,15 @@
-resource "aws_cloudwatch_log_group" "lambda_log_group" {
-  name              = "/aws/lambda/${var.extractor_lambda_name}"
-  retention_in_days = 7
-  lifecycle {
-    prevent_destroy = false
-  }
-}
+# resource "aws_cloudwatch_log_group" "lambda_log_group" {
+#   # name              = "/aws/lambda/${var.extractor_lambda_name}"
+#   retention_in_days = 7
+#   lifecycle {
+#     prevent_destroy = false
+#   }
+# }
 
 resource "aws_cloudwatch_log_metric_filter" "single_error" {
   name           = "single_error_notification"
   pattern        = "ERROR"
-  log_group_name = aws_cloudwatch_log_group.lambda_log_group.name #aws_cloudwatch_log_group.error_log_group.name
+  log_group_name = "/aws/lambda/${var.extractor_lambda_name}" #aws_cloudwatch_log_group.error_log_group.name
   metric_transformation {
     name      = "error_metric"
     namespace = "ErrorMetrics"

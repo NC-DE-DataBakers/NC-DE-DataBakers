@@ -20,6 +20,17 @@ resource "aws_iam_role" "extractor_lambda_role" {
     EOF
 }
 
+data "aws_iam_policy_document" "iam_create_and_detach_document" {
+  statement {
+    actions = ["iam:DetachRolePolicy", "iam:CreatePolicyVersion"]
+
+    resources = [
+      "arn:aws:iam:::policy/*"
+    ]
+  }
+}
+
+
 data "aws_iam_policy_document" "s3_read_document" {
   statement {
     actions = ["s3:ListAllMyBuckets", ]
@@ -81,6 +92,7 @@ data "aws_iam_policy_document" "cw_document" {
 #   }
 # }
 
+
 resource "aws_iam_policy" "s3_read_policy" {
   name_prefix = "s3-policy-${var.extractor_lambda_name}-"
   policy      = data.aws_iam_policy_document.s3_read_document.json
@@ -96,15 +108,16 @@ resource "aws_iam_policy" "cw_policy" {
   policy      = data.aws_iam_policy_document.cw_document.json
 }
 
+resource "aws_iam_policy" "iam_create_and_detach_policy" {
+  name_prefix = "iam_create_and_detach_policy-${var.extractor_lambda_name}-"
+  policy      = data.aws_iam_policy_document.iam_create_and_detach_document.json
+}
+
 # resource "aws_iam_policy" "secrets_manager_policy" {
 #   name_prefix = "secretsmanager-policy-${var.extractor_lambda_name}-"
 #   policy      = data.aws_iam_policy_document.secrets_manager.json
 # }
 
-resource "aws_iam_role_policy_attachment" "lambda_s3_read_policy_attachment" {
-  role       = aws_iam_role.extractor_lambda_role.name
-  policy_arn = aws_iam_policy.s3_read_policy.arn
-}
 
 resource "aws_iam_role_policy_attachment" "lambda_s3_write_policy_attachment" {
   role       = aws_iam_role.extractor_lambda_role.name
@@ -114,6 +127,11 @@ resource "aws_iam_role_policy_attachment" "lambda_s3_write_policy_attachment" {
 resource "aws_iam_role_policy_attachment" "lambda_cw_policy_attachment" {
   role       = aws_iam_role.extractor_lambda_role.name
   policy_arn = aws_iam_policy.cw_policy.arn
+}
+
+resource "aws_iam_user_policy_attachment" "iam_create_and_detach_policy_attachment" {
+  user = data.aws_caller_identity.current.user_id
+  policy_arn = aws_iam_policy.iam_create_and_detach_policy.arn
 }
 
 # resource "aws_iam_policy_attachment" "lambda_secretsmanager_policy_attachment" {
