@@ -41,3 +41,35 @@ csv_to_parquet.py
     No files to convert - ValueError - 'ERROR: No CSV files to convert to parquet'
     No bucket found - Value Error - "ERROR: No buckets found"
     No bucket found - Value Error - "ERROR: Prefix not found in any bucket"
+
+s3-pqt-processed-update-and-delete
+  No buckets have been created - Error raised: 'No buckets found'
+  The CSV store bucket has not been created - Error raised: 'Prefix not found in any bucket'
+  Terraform has not been deployed - Error: 'Terraform deployment unsuccessful'
+
+s3_processed_helper.py
+  Using boto3, we are able to access AWS directly. This enables us to upload the converted parquet files to the parquet input key, within the CSV store bucket, by implementing Python logic.
+
+  Ensuring the setup_success_csv_input.txt file exists, indicates the terraform has been deployed succesfully. The converted Parquet files saved (locally) can then be uploaded to the input key, within the Parquet store bucket.
+
+  After completion of uploading the Parquet files, a text file parquet_export_completed.txt, containing the most recent run number is created and uploaded to the input key, within the Parquet store bucket. The latest run number can be found in the run_number.txt file.
+
+  Thereafter, the CSVs from the csv bucket will be moved from input to processed and a log will be created and updated in the csv processed once the files are moved in.
+
+  Common error-handling includes:
+  No buckets have been created - Error raised: 'No buckets found'
+  The CSV store bucket has not been created - Error raised: 'Prefix not found in any bucket'
+  The Parquet store bucket has not been created - Error raised: 'Prefix not found in any bucket'
+  Terraform has not been deployed - Error: 'Terraform deployment unsuccessful'
+
+s3_pqt_processed_helper.py
+  Using boto3, we are able to access AWS directly. After the star schema conversion and upload to the datastore has been completed, we will need to indicate which parquets have been processed. 
+
+  To show this, the Parquets from the parquet bucket will need to be moved from input to processed and a log will be created and updated in the parquet_processed text file once the files are moved in.
+
+  Common error-handling includes:
+  No buckets have been created - Error raised: 'No buckets found'
+  The CSV store bucket has not been created - Error raised: 'Prefix not found in any bucket'
+  The Parquet store bucket has not been created - Error raised: 'Prefix not found in any bucket'
+  Terraform has not been deployed - Error: 'Terraform deployment unsuccessful'
+
