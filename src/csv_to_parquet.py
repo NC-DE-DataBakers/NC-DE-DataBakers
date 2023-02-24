@@ -60,7 +60,7 @@ def list_files_to_convert():
 
 def convert_csv_to_parquet():
   """ 
-    locally stored files from "./tmp/*.csv" are converted to parquet,
+    locally stored files from "./tmp/dim_*.csv" "./tmp/fact*.csv" are converted to parquet,
     and saved in a pqt_tmp folder
     Args:
         Not required.
@@ -68,7 +68,9 @@ def convert_csv_to_parquet():
     Returns:
         nothing
   """
-  file_list = glob.glob("./tmp/*.csv")
+  dims = glob.glob("./tmp/dim_*.csv")
+  facts = glob.glob("./tmp/fact_*.csv")
+  file_list = dims + facts
   if len(file_list) < 1:
     raise ValueError('ERROR: No CSV files to convert to parquet')
   for file in file_list:
