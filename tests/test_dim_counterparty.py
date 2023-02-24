@@ -1,6 +1,6 @@
 from src.dim_counterparty import make_dimension
-import pytest
 import pandas as pd
+import pytest
 import os
 
 if not os.path.isdir('./tmp'):
@@ -60,6 +60,29 @@ def test_converted_file_has_correct_column_names():
   
   for name in columns:
     assert name in converted.columns
+
+def test_converted_file_has_correctly_joined_addresses_on_address_id():
+  d = pd.DataFrame(data={'counterparty_id' : [1,2], 'counterparty_legal_name': ['Fahey and Son','Leannon'], 
+                         'legal_address_id': [15,28], 'commercial_contact': [8,9],
+                         'delivery_contact' : [1,2]})
+  d.to_csv('./tmp/counterparty.csv', index=False)
+  
+  d = pd.DataFrame(data={'address_id' : [1,2,15,28], 'address_line_1': ['6826 Herzog Via','179 Alexie Cliffs', '605 Haskell Trafficway', '079 Horacio Landing'], 
+                        'address_line_2': ['','','Axel Freeway',''], 'district':[28441,99305-7380,10,1],
+                        'city':[1,2,3,4], 'postal_code':[4,5,6,7],
+                        'country': [7,8,9,10], 'phone':[1,2,3,4]})
+  d.to_csv('./tmp/address.csv', index=False)
+
+  make_dimension()
+
+  converted = pd.read_csv('./tmp/dim_counterparty.csv')
+  
+  assert converted['counterparty_id'][0] == 1
+  assert converted['counterparty_legal_address_line_1'][0] == '605 Haskell Trafficway'
+  assert converted['counterparty_legal_address_line_2'][0] == 'Axel Freeway'
+    
+  assert converted['counterparty_id'][1] == 2
+  assert converted['counterparty_legal_address_line_1'][1] == '079 Horacio Landing'
 
 def test_cleanup():
   files = os.listdir('./tmp')

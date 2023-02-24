@@ -1,12 +1,10 @@
 import pandas as pd
-from src.extractor_lambda import put_tables_to_csv
-put_tables_to_csv()
 
 def make_dimension():
   """
   Summary: using pandas, read the counterparty and address csv injested from 
   the totesys DB,  merges the two dataframes on the address_id. creates a new 
-  dataframe from the merged data in the schema required
+  dataframe from the merged data in the schema required.
 
   Raises:
       ValueError: on KeyError - ERROR: dim_counterparty - "column" does not exist
@@ -43,7 +41,6 @@ def make_dimension():
   except Exception as error:
     raise ValueError(f'ERROR: {error}')
   
-make_dimension()
 
   
   
