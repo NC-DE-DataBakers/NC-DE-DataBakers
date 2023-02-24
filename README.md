@@ -12,13 +12,13 @@ conn.py
   querys to the database, SELECT table_name, passing them to lambda_handler() where a new SQL query is made to SELECT * from each table provided. this data is saved to csv, and uploaded to the processing bucket hosted on aws s3.
 
   Common errorhandling include:
-  Connection errors - DatabaseError: '28P01' - user/password is incorrect
-  Connection errors - ProgrammingError: '28P01' - user/password is incorrect
-  Connection errors - ProgrammingError: '3D000' - database does not exist
-  Connection errors - InterfaceError: - typically a bad host name
+    Connection errors - DatabaseError: '28P01' - user/password is incorrect
+    Connection errors - ProgrammingError: '28P01' - user/password is incorrect
+    Connection errors - ProgrammingError: '3D000' - database does not exist
+    Connection errors - InterfaceError: - typically a bad host name
 
-  Query errors - ProgrammingError: '42703' - column does not exist
-  Query errors - ProgrammingError: '42P01' - relation to table does not exist
+    Query errors - ProgrammingError: '42703' - column does not exist
+    Query errors - ProgrammingError: '42P01' - relation to table does not exist
 
 s3_helper.py
   Using boto3, we are able to access AWS directly. This enables us to upload files to the input key, within the CSV store bucket, by implementing Python logic.
@@ -28,6 +28,21 @@ s3_helper.py
   After completion of uploading the CSV files, a text file csv_export_completed.txt, containing the most recent run number is created and uploaded to the input key, within the CSV store bucket. The latest run number can be found in the run_number.txt file.
 
   Common error-handling includes:
+    No buckets have been created - Error raised: 'No buckets found'
+    The CSV store bucket has not been created - Error raised: 'Prefix not found in any bucket'
+    Terraform has not been deployed - Error: 'Terraform deployment unsuccessful'
+
+csv_to_parquet.py
+  Connection to the s3 bucket, is made to parse a list of available buckets and their suffix's. once the correct bucket is found, itterating over each file to extract their name prior to downloading to a local './tmp' folder.
+  each file is converted from csv to parquet using the pandas library - pyarrow/fastparquet engine. and stored locally ready to to be sent to the parquet input bucket.
+
+  common error-handling include:
+    no data in CSV - pd.errors.EmptyDataError 
+    No files to convert - ValueError - 'ERROR: No CSV files to convert to parquet'
+    No bucket found - Value Error - "ERROR: No buckets found"
+    No bucket found - Value Error - "ERROR: Prefix not found in any bucket"
+
+s3-pqt-processed-update-and-delete
   No buckets have been created - Error raised: 'No buckets found'
   The CSV store bucket has not been created - Error raised: 'Prefix not found in any bucket'
   Terraform has not been deployed - Error: 'Terraform deployment unsuccessful'
@@ -47,7 +62,7 @@ s3_processed_helper.py
   The Parquet store bucket has not been created - Error raised: 'Prefix not found in any bucket'
   Terraform has not been deployed - Error: 'Terraform deployment unsuccessful'
 
-  s3_pqt_processed_helper.py
+s3_pqt_processed_helper.py
   Using boto3, we are able to access AWS directly. After the star schema conversion and upload to the datastore has been completed, we will need to indicate which parquets have been processed. 
 
   To show this, the Parquets from the parquet bucket will need to be moved from input to processed and a log will be created and updated in the parquet_processed text file once the files are moved in.
@@ -57,3 +72,4 @@ s3_processed_helper.py
   The CSV store bucket has not been created - Error raised: 'Prefix not found in any bucket'
   The Parquet store bucket has not been created - Error raised: 'Prefix not found in any bucket'
   Terraform has not been deployed - Error: 'Terraform deployment unsuccessful'
+
