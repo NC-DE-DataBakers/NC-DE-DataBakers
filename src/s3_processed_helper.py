@@ -2,17 +2,14 @@ import boto3
 import os
 
 
-"""This application should allow the user to retrieve and convert the data from the ToteSys database to CSV format by using python and PostgreSQL queries.
-The database will be accessed through the dotenv environment ensuring the credentials are kept out of plain sight and are kept confidential.
-This application is designed to be run as a lambda function.
-
+"""This application should allow the user to upload the converted csv files to the s3 parquet bucket and also move the the original csv files from the input csv key to the processed csv key with appropriate logging. 
 The file is run by calling this module with the python keyword.
 
 Example:
-    python src/conn.py
+    python src/s3_processed_helper.py
 
 To run the test file, please use the below:
-    pytest tests/test_conn.py
+    pytest tests/test_s3_processed_helper.py
 """
 
 def s3_list_buckets():

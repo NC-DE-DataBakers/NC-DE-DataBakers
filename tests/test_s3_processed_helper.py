@@ -58,7 +58,7 @@ def test_parquet_bucket_for_input_key_if_bucket_is_prefixed():
 def test_setup_success_txt_file_exists_pqt_input():
     s3 = boto3.client('s3')
     s3.create_bucket(Bucket='nc-de-databakers-parquet-store-20202')
-    s3.put_object(Bucket='nc-de-databakers-parquet-store-20202', Key='input_csv_key/')
+    s3.put_object(Bucket='nc-de-databakers-parquet-store-20202', Key='input_parquet_key/')
     s3res = boto3.resource('s3')
     s3res.Bucket('nc-de-databakers-parquet-store-20202').upload_file(
         './setup_success_parquet_input.txt', 'input_parquet_key/setup_success_parquet_input.txt')
