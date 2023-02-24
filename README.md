@@ -46,3 +46,14 @@ s3_processed_helper.py
   The CSV store bucket has not been created - Error raised: 'Prefix not found in any bucket'
   The Parquet store bucket has not been created - Error raised: 'Prefix not found in any bucket'
   Terraform has not been deployed - Error: 'Terraform deployment unsuccessful'
+
+  s3_pqt_processed_helper.py
+  Using boto3, we are able to access AWS directly. After the star schema conversion and upload to the datastore has been completed, we will need to indicate which parquets have been processed. 
+
+  To show this, the Parquets from the parquet bucket will need to be moved from input to processed and a log will be created and updated in the parquet_processed text file once the files are moved in.
+
+  Common error-handling includes:
+  No buckets have been created - Error raised: 'No buckets found'
+  The CSV store bucket has not been created - Error raised: 'Prefix not found in any bucket'
+  The Parquet store bucket has not been created - Error raised: 'Prefix not found in any bucket'
+  Terraform has not been deployed - Error: 'Terraform deployment unsuccessful'
