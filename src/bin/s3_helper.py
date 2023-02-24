@@ -1,5 +1,5 @@
 import boto3
-from src.conn import lambda_handler
+from src.bin.conn import put_tables_to_csv
 import os
 
 def s3_list_buckets():
@@ -27,7 +27,7 @@ def s3_setup_success():
 def s3_upload_csv_files():
     s3=boto3.resource('s3')
     if s3_setup_success():
-        lambda_handler()
+        put_tables_to_csv()
         csv_files = os.listdir('tmp')
         for file in csv_files:
             s3.Bucket(s3_list_prefix_buckets()).upload_file(f'./tmp/{file}', f'input_csv_key/{file}')
