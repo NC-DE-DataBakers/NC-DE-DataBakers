@@ -7,7 +7,6 @@ from moto import mock_s3
 import pandas as pd
 import pytest
 import boto3
-import glob
 import csv
 import os
 
@@ -16,7 +15,7 @@ if not os.path.isdir('./tmp'):
 """
 
   csv_to_parquet testing
-  
+
 """
 @mock_s3
 def test_connection_to_bucket():
@@ -46,20 +45,12 @@ def test_list_files_to_convert():
     
 @mock_s3
 def test_files_are_converted_to_parquet():
-  fields = ['column1', 'column2', 'column3']  
-  rows = [ ['A', '011', '2000'], 
-        ['B', '012', '8000'],
-        ['C', '351', '5000'],
-        ['D', '146', '10000'] ] 
+
+  test = pd.DataFrame(data={'column1': ['a'], 'column2':[1], 'column3': [1]})
+  test.to_csv('./tmp/dim_mockconversion1.csv')
   
-  with open('./tmp/dim_mockconversion1.csv', 'w') as f:
-    csv_writer = csv.writer(f)
-    csv_writer.writerow(fields)
-    csv_writer.writerows(rows)
-    
   reader = csv.reader(open("./tmp/dim_mockconversion1.csv"))
-  # for row in reader:
-  #     print(row)
+
   convert_csv_to_parquet()
   
   assert os.path.isfile("./pqt_tmp/dim_mockconversion1.parquet")
@@ -70,6 +61,8 @@ def test_files_are_converted_to_parquet():
   assert os.path.isdir('./pqt_tmp') is False
   
 def test_files_are_converted_to_parquet():
+  if not os.path.isdir('./tmp'):
+    os.makedirs('./tmp')
   open('./tmp/dim_mockconversion1.csv', 'w')
   with pytest.raises(pd.errors.EmptyDataError):
     convert_csv_to_parquet()
@@ -124,7 +117,8 @@ def test_csv_conversion_run_number_incremented():
   assert os.path.isfile("./tmp/csv_conversion_s3.txt") is False
 
 def test_dim_fact_converted_only():
-  
+  if not os.path.isdir('./tmp'):
+    os.makedirs('./tmp')
   dim_a = pd.DataFrame(data={'a': [1], 'b': [2]})
   dim_a.to_csv('./tmp/dim_a.csv', index=False)
   fact_a = pd.DataFrame(data={'c': [2], 'd': [4]})
@@ -254,10 +248,12 @@ def test_missing_columns_raises_key_error_currency():
   except Exception as e:
     assert e.args[0]== "ERROR: dim_currency - 'currency_code' does not exist"
 
-
 """ 
-TESTS FOR DIM_DATE<DESING<LOCATION<STAFF
+TESTS FOR DIM_DATE<DESIGN<LOCATION<STAFF
 """
+
+
+
 
 def test_dim_staff_star_schema_contains_correct_column():
     correct_column_names = ['staff_id', 'first_name', 'last_name', 'department_name', 'location', 'email_address']

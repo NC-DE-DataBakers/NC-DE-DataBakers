@@ -1,8 +1,10 @@
+from datetime import date, timedelta
 import pandas as pd
 import logging
 import boto3
 import glob
 import os
+import re
 
 logger = logging.getLogger('MyLogger')
 logger.setLevel(logging.INFO)
@@ -14,7 +16,7 @@ def lambda_handler(event, context):
       event (_type_): _description_
       context (_type_): _description_
   """
-  
+
   try:
     if not os.path.isdir('./tmp'):
       os.makedirs('./tmp')
@@ -54,10 +56,7 @@ def lambda_handler(event, context):
     s3_upload_pqt_files_to_pqt_input_key(parquet_prefix)
     s3_create_pqt_input_completed_txt_file()
     s3_pqt_input_upload_and_log(parquet_prefix)
-    
-    
-    
-    
+
   except:
     pass
   
@@ -302,10 +301,86 @@ def create_dim_location():
     except Exception as error:
         raise ValueError(f'ERROR: {error}')
 
+def create_dim_date():
+    try:
+        df = pd.read_csv('./tmp/sales_order.csv')
+
+        df[['created_at', 'last_updated', 'agreed_delivery_date', 'agreed_payment_date']] = df[['created_at', 'last_updated', 'agreed_delivery_date', 'agreed_payment_date']] .apply(pd.to_datetime, format="%Y-%m-%d %H:%M:%S.%f")
+        
+        min_dates = []
+        max_dates = []
+
+        min_dates.append(df['created_at'].min())
+        min_dates.append(df['last_updated'].min())
+        min_dates.append(df['agreed_delivery_date'].min())
+        min_dates.append(df['agreed_payment_date'].min())
+
+        max_dates.append(df['created_at'].max())
+        max_dates.append(df['last_updated'].max())
+        max_dates.append(df['agreed_delivery_date'].max())
+        max_dates.append(df['agreed_payment_date'].max())
+
+        min_date = min(min_dates)
+        max_date = max(max_dates)
+        
+        dim_date = pd.DataFrame()
+        dim_date['date_id'] = [min_date+timedelta(days=x) for x in range(((max_date + timedelta(days=1))-min_date).days)]
+
+        dim_date['year'] = dim_date['date_id'].dt.year
+        dim_date['month'] = dim_date['date_id'].dt.month
+        dim_date['day'] = dim_date['date_id'].dt.day
+        dim_date['day_of_week'] = dim_date['date_id'].dt.day_of_week
+        dim_date['day_name'] = dim_date['date_id'].dt.day_name()
+        dim_date['month_name'] = dim_date['date_id'].dt.month_name()
+        dim_date['quarter'] = dim_date['date_id'].dt.quarter
+
+        dim_date.to_csv('./tmp/dim_date.csv', index=False)
+
+    except KeyError as error:
+        raise ValueError(f'ERROR: dim_date - {error} does not exist')
+    except FileNotFoundError as error:
+        raise ValueError(f'ERROR: {error}')
+    except pd.errors.EmptyDataError as EDE:
+        raise ValueError(f'ERROR: {EDE}')
+    except pd.errors.DtypeWarning as DTW:
+        raise ValueError(f'ERROR: {DTW}')
+    except AttributeError as Attr:
+        raise AttributeError(f'ERROR: {Attr}')
+    except Exception as error:
+        raise ValueError(f'ERROR: {error}')
+
 def create_fact_sales_order():
-  pass
+    try:
+        fact_sales = pd.read_csv('./tmp/sales_order.csv')
+
+        fact_sales[['created_at', 'last_updated', 'agreed_delivery_date', 'agreed_payment_date']] = fact_sales[['created_at', 'last_updated', 'agreed_delivery_date', 'agreed_payment_date']].apply(pd.to_datetime, format="%Y-%m-%d %H:%M:%S.%f")
+
+        fact_sales['created_time'] = fact_sales['created_at'].dt.time
+        fact_sales['last_updated_time'] = fact_sales['last_updated'].dt.time
+        fact_sales['created_at'] = fact_sales['created_at'].dt.date
+        fact_sales['last_updated'] = fact_sales['last_updated'].dt.date
+        fact_sales['agreed_delivery_date'] = fact_sales['agreed_delivery_date'].dt.date
+        fact_sales['agreed_payment_date'] = fact_sales['agreed_payment_date'].dt.date
+
+        fact_sales.rename({'created_at': 'created_date', 'last_updated': 'last_updated_date', 'staff_id': 'sales_staff_id'}, axis=1, inplace=True)
+
+        fact_sales = fact_sales[['sales_order_id', 'created_date', 'created_time', 'last_updated_date', 'last_updated_time', 'sales_staff_id', 'counterparty_id', 'units_sold', 'unit_price', 'currency_id', 'design_id', 'agreed_payment_date', 'agreed_delivery_date', 'agreed_delivery_location_id']]
+
+        fact_sales.to_csv('./tmp/fact_sales_order.csv', index=False)
 
 
+    except KeyError as error:
+        raise ValueError(f'ERROR: dim_counterparty - {error} does not exist')
+    except FileNotFoundError as error:
+        raise ValueError(f'ERROR: {error}')
+    except pd.errors.EmptyDataError as EDE:
+        raise ValueError(f'ERROR: {EDE}')
+    except pd.errors.DtypeWarning as DTW:
+        raise ValueError(f'ERROR: {DTW}')
+    except AttributeError as Attr:
+        raise AttributeError(f'ERROR: {Attr}')
+    except Exception as error:
+        raise ValueError(f'ERROR: {error}')
 
 def convert_csv_to_parquet():
   """ 
@@ -316,15 +391,23 @@ def convert_csv_to_parquet():
 
     Returns:
         nothing
+
   """
-  dims = glob.glob("./tmp/dim_*.csv")
-  facts = glob.glob("./tmp/fact_*.csv")
+  
+  file_list = os.listdir('./tmp')
+  dim_re = re.compile(r'dim_\w+.csv')
+  dims = [ file for file in file_list if dim_re.match(file) ]
+
+  fact_re = re.compile(r'fact_\w+.csv')
+  facts = [ file for file in file_list if fact_re.match(file) ]
+
   file_list = dims + facts
+  
   if len(file_list) < 1:
     raise ValueError('ERROR: No CSV files to convert to parquet')
   for file in file_list:
     filename = os.path.basename(file).split('.')[0]
-    df = pd.read_csv(file)
+    df = pd.read_csv(f'./tmp/{file}')
 
     if not os.path.exists("pqt_tmp"):
         os.makedirs("pqt_tmp")
