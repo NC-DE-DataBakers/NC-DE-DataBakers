@@ -1,7 +1,7 @@
 from src.stage_2_lambda import s3_list_prefix_parquet_buckets, s3_pqt_input_setup_success, s3_csv_processed_setup_success, s3_pqt_input_upload_and_log, s3_create_pqt_input_completed_txt_file, s3_upload_pqt_files_to_pqt_input_key
 from src.stage_2_lambda import s3_list_prefix_csv_buckets, s3_move_csv_files_to_csv_processed_key_and_delete_from_input, s3_create_csv_processed_completed_txt_file, s3_csv_processed_upload_and_log
 from src.stage_2_lambda import convert_csv_to_parquet, list_files_to_convert, update_csv_conversion_file, s3_list_buckets
-from src.stage_2_lambda import create_dim_counterparty, create_dim_currency
+from src.stage_2_lambda import create_dim_counterparty, create_dim_currency, create_dim_staff, create_dim_design, create_dim_location
 from unittest.mock import patch
 from moto import mock_s3
 import pandas as pd
@@ -259,7 +259,117 @@ def test_missing_columns_raises_key_error_currency():
 TESTS FOR DIM_DATE<DESING<LOCATION<STAFF
 """
 
+def test_dim_staff_star_schema_contains_correct_column():
+    correct_column_names = ['staff_id', 'first_name', 'last_name', 'department_name', 'location', 'email_address']
+    staff = pd.DataFrame(data={'staff_id':[], 'first_name':[], 'last_name':[], 'department_name':[], 'location':[], 'email_address':[], 'department_id':[]})
+    staff.to_csv('./tmp/staff.csv')
+    
+    department_test_table = pd.DataFrame(data={'department_id': [] })
+    department_test_table.to_csv('./tmp/department.csv', index=False)
+    
+    dim_staff_table = create_dim_staff()
+    staff_columns = [column for column in dim_staff_table]
+    assert staff_columns == correct_column_names
 
+
+def test_staff_department_id_correlates_with_department_name():
+    staff_test_table = pd.DataFrame(data={  'staff_id': [1, 2, 3],
+                                            'first_name': ['Jeremie', 'Deron', 'Jeanette'],
+                                            'last_name': ['Franey', 'Beier', 'Erdman'],
+                                            'department_id': [2, 6, 6],
+                                            'email_address': ['jeremie.franey@terrifictotes.com', 'deron.beier@terrifictotes.com', 'jeanette.erdman@terrifictotes.com']})
+    staff_test_table.to_csv('./tmp/staff_test_table.csv', index=False)
+
+    dim_staff_test_table = pd.DataFrame(data={  'staff_id': [1, 2, 3],
+                                                'first_name': ['Jeremie', 'Deron', 'Jeanette'],
+                                                'last_name': ['Franey', 'Beier', 'Erdman'],
+                                                'department_name': ['Purchasing', 'Facilities', 'Facilities'],
+                                                'location': ['Manchester', 'Manchester', 'Manchester'],
+                                                'email_address': ['jeremie.franey@terrifictotes.com', 'deron.beier@terrifictotes.com', 'jeanette.erdman@terrifictotes.com']})
+    dim_staff_test_table.to_csv('./tmp/dim_staff_test_table.csv', index=False)
+
+    department_look_up = {
+        'Sales': 1,
+        'Purchasing': 2,
+        'Production': 3,
+        'Dispatch':	4,
+        'Finance': 5,
+        'Facilities': 6,
+        'Communications': 7,
+        'HR': 8
+    }
+
+    with open('./tmp/staff_test_table.csv', 'r', encoding='utf-8') as csv_file:
+        csv_data = csv.reader(csv_file)
+        csv_list = [data for data in csv_data]
+
+    with open('./tmp/dim_staff_test_table.csv', 'r', encoding='utf-8') as dim_staff_file:
+        dim_staff_data = csv.reader(dim_staff_file)
+        dim_staff_list = [data for data in dim_staff_data]
+
+    for index in range(1, len(dim_staff_list)):
+        compare_value = department_look_up[dim_staff_list[index][3]]
+        assert compare_value == int(csv_list[index][3])
+
+def test_dim_design_star_schema_contains_correct_column():
+    correct_column_names = ['design_id', 'design_name', 'file_location', 'file_name']
+    design = pd.DataFrame(data={'design_id':[], 'design_name':[], 'file_location':[], 'file_name':[]})
+    design.to_csv('./tmp/design.csv')
+    dim_design_table = create_dim_design()
+    design_columns = [column for column in dim_design_table]
+    assert design_columns == correct_column_names
+    
+def test_dim_location_star_schema_contains_correct_column():
+    correct_column_names = ['location_id', 'address_line_1', 'address_line_2', 'district', 'city', 'postal_code', 'country', 'phone']
+    dim_location_table = create_dim_location()
+    location_columns = [column for column in dim_location_table]
+    assert location_columns == correct_column_names
+
+def test_dim_staff_missing_columns_raises_value_error():
+    staff_test_table = pd.DataFrame(data={  'staff_id': [1, 2, 3],
+                                            'first_name': ['Jeremie', 'Deron', 'Jeanette'],
+                                            'last_name': ['Franey', 'Beier', 'Erdman'],
+                                            'department_id': [2, 6, 6]})
+    staff_test_table.to_csv('./tmp/staff.csv', index=False)
+    
+    department_test_table = pd.DataFrame(data={'department_id': [2,6,6], 'department_name': ['man', 'dog', 'car'], 'location':['manchester', 'leeds', 'london']})
+    department_test_table.to_csv('./tmp/department.csv', index=False)
+    with pytest.raises(ValueError):
+        create_dim_staff()
+    try:
+        create_dim_staff()
+    except Exception as e:
+        assert e.args[0]== "ERROR: dim_staff - 'email_address' does not exist"
+
+def test_dim_design_missing_columns_raises_value_error():
+    design_test_table = pd.DataFrame(data={ 'design_id': [1, 5, 8],
+                                            'design_name': ['Wooden', 'Granite', 'Wooden'],
+                                            'file_location': ['/home/user/dir', '/root', '/usr']})
+    design_test_table.to_csv('./tmp/design.csv', index=False)
+  
+    with pytest.raises(ValueError):
+        create_dim_design()
+    try:
+        create_dim_design()
+    except Exception as e:
+        assert e.args[0]== "ERROR: dim_design - 'file_name' does not exist"
+
+def test_dim_location_missing_columns_raises_value_error():
+    location_test_table = pd.DataFrame(data={   'address_id': [1, 2, 3],
+                                                'address_line_1': ['6826 Herzog Via', '179 Alexie Cliffs', '148 Sincere Fort'],
+                                                'district': ['Avon', '', ''],
+                                                'city': ['New Patienceburgh', 'Aliso Viejo', 'Lake Charles'],
+                                                'postal_code': ['28441', '99305-7380', '89360'],
+                                                'country': ['Turkey', 'San Marino', 'Samoa'],
+                                                'phone': ['1803 637401', '9621 880720', '0730 783349']})
+    location_test_table.to_csv('./tmp/address.csv', index=False)
+  
+    with pytest.raises(ValueError):
+        create_dim_location()
+    try:
+        create_dim_location()
+    except Exception as e:
+        assert e.args[0]== "ERROR: dim_location - 'address_line_2' does not exist"
 
 
 
@@ -569,13 +679,6 @@ def test_setup_unsuccessful_error_message_for_parquet_input():
         s3_upload_pqt_files_to_pqt_input_key('nc-de-databakers-parquet-store-20202')
     assert str(errinfo.value) == "ERROR: Terraform deployment unsuccessful"
 
-
-
-
-
-
-
-
 def test_cleanup():
   files = os.listdir('./tmp')
   for file in files:
@@ -585,6 +688,3 @@ def test_cleanup():
   for file in files:
       os.remove(f'./pqt_tmp/{file}')
   os.removedirs('./pqt_tmp')
-  
-  
-  
