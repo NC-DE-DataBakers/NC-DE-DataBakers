@@ -1,15 +1,44 @@
 import pandas as pd
+import logging
 import boto3
 import glob
 import os
 
-"""
-  This application will retreive the csv files stored in the csv processed
-  bucket to a local
-  directory "/tmp/files.csv". converts all files ending with *.csv to parquet.
-    
-"""
 
+logger = logging.getLogger('MyLogger')
+logger.setLevel(logging.INFO)
+
+def lambda_handler(event, context):
+  """_summary_
+
+  Args:
+      event (_type_): _description_
+      context (_type_): _description_
+  """
+  
+  try:
+    if not os.path.isdir('./tmp'):
+      os.makedirs('./tmp')
+    if not os.path.isdir('./tmp'):
+      os.makedirs('./tmp')
+  
+    #download csv files from s3
+    list_files_to_convert()
+    
+    #make dimemsions and fact tables
+    
+   
+    #convert to parquet
+    convert_csv_to_parquet()
+    
+    #update conversion csv
+    update_csv_conversion_file()
+    
+    #upload to the parquet input bucket
+    
+  except:
+    pass
+  
 def s3_list_buckets():
   """ 
     
@@ -57,6 +86,18 @@ def list_files_to_convert():
   list=s3.list_objects(Bucket=bucket)['Contents']
   for key in list:
     s3.download_file(bucket, key['Key'], f'./tmp/{key["Key"].split("/")[1]}')
+
+
+
+
+
+
+
+
+
+
+
+
 
 def convert_csv_to_parquet():
   """ 
@@ -109,7 +150,4 @@ def update_csv_conversion_file():
   with open('./tmp/csv_conversion.txt', 'w+') as file:
     file.write(f'Run {num+1}')
   s3.upload_file("./tmp/csv_conversion.txt", bucket_str, "processed_csv_key/csv_conversion.txt")
-
-# list_files_to_convert()
-# convert_csv_to_parquet()
-# update_csv_conversion_file()
+      
