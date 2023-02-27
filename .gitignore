@@ -54,3 +54,4 @@ terraform.rc
 
 # Temporary folders
 tmp/
+bqt_tmp/
