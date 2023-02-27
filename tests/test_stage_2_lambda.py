@@ -1,7 +1,7 @@
 from src.stage_2_lambda import s3_list_prefix_parquet_buckets, s3_pqt_input_setup_success, s3_csv_processed_setup_success, s3_pqt_input_upload_and_log, s3_create_pqt_input_completed_txt_file, s3_upload_pqt_files_to_pqt_input_key
 from src.stage_2_lambda import s3_list_prefix_csv_buckets, s3_move_csv_files_to_csv_processed_key_and_delete_from_input, s3_create_csv_processed_completed_txt_file, s3_csv_processed_upload_and_log
 from src.stage_2_lambda import convert_csv_to_parquet, list_files_to_convert, update_csv_conversion_file, s3_list_buckets
-from src.stage_2_lambda import create_dim_counterparty, create_dim_currency, create_dim_staff, create_dim_design, create_dim_location
+from src.stage_2_lambda import create_dim_counterparty, create_dim_currency, create_dim_staff, create_dim_design, create_dim_location, create_dim_date, create_fact_sales_order
 from unittest.mock import patch
 from moto import mock_s3
 import pandas as pd
@@ -252,9 +252,50 @@ def test_missing_columns_raises_key_error_currency():
 TESTS FOR DIM_DATE<DESIGN<LOCATION<STAFF
 """
 
+def test_dim_date_has_correct_columns():
 
+  date = pd.DataFrame(data={'created_at':['2022-11-03 14:20:52.186000','2022-11-03 14:20:52.186000'], 'last_updated': ['2022-11-03 14:20:52.186000','2022-11-03 14:20:52.186000'],
+                            'agreed_delivery_date': ['2022-11-10','2022-11-07'], 'agreed_payment_date':['2022-11-03','2022-11-08']})
 
+  date.to_csv('./tmp/sales_order.csv')
+  create_dim_date()
+  dim_date = pd.read_csv('./tmp/dim_date.csv')
+  assert dim_date['year'][0] == 2022
+  assert dim_date['month'][0] == 11
+  assert dim_date['day'][0] == 3
+  assert dim_date['day_of_week'][0] == 3
+  assert dim_date['day_name'][0] == 'Thursday'
+  assert dim_date['month_name'][0] == 'November'
+  assert dim_date['quarter'][0] == 4
+  
+def test_missing_columns_raises_key_error_date():
+  date = pd.DataFrame(data={'created_at':['2022-11-03 14:20:52.186000','2022-11-03 14:20:52.186000'], 'last_updated': ['2022-11-03 14:20:52.186000','2022-11-03 14:20:52.186000'],
+                            'agreed_delivery_date': ['2022-11-10','2022-11-07']})
+  date.to_csv('./tmp/sales_order.csv', index=False)
+  
+  with pytest.raises(ValueError):
+    create_dim_date()
+  try:
+      create_dim_date()
+  except Exception as e:
+    assert e.args[0]== """ERROR: dim_date - "['agreed_payment_date'] not in index" does not exist"""
 
+def test_converted_file_has_correct_column_names_date():
+  date = pd.DataFrame(data={'created_at':['2022-11-03 14:20:52.186000','2022-11-03 14:20:52.186000'], 'last_updated': ['2022-11-03 14:20:52.186000','2022-11-03 14:20:52.186000'],
+                            'agreed_delivery_date': ['2022-11-10','2022-11-07'], 'agreed_payment_date':['2022-11-03','2022-11-08']})
+
+  date.to_csv('./tmp/sales_order.csv')
+
+  create_dim_date()
+
+  converted = pd.read_csv('./tmp/dim_date.csv')
+
+  columns = ['year', 'month', 'day', 'day_of_week', 'day_name', 'month_name', 'quarter']
+  
+  for name in columns:
+    assert name in converted.columns
+  
+  
 def test_dim_staff_star_schema_contains_correct_column():
     correct_column_names = ['staff_id', 'first_name', 'last_name', 'department_name', 'location', 'email_address']
     staff = pd.DataFrame(data={'staff_id':[], 'first_name':[], 'last_name':[], 'department_name':[], 'location':[], 'email_address':[], 'department_id':[]})
