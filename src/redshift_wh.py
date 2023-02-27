@@ -2,6 +2,7 @@ from pg8000 import Connection
 import pg8000
 import boto3
 import json
+import sqlalchemy
 
 sm = boto3.client('secretsmanager')
 
@@ -87,5 +88,10 @@ def name_fetcher():
 
 # conn_db()
 # create_postgres_tables()
+
+def fill_fact_sales_order_table():
+    
+    fact_sales_order = pd.read_parquet('./pqt_tmp')
+    spark.read.parquet("...").write.csv("...")
 
 name_fetcher()
