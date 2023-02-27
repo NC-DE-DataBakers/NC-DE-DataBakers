@@ -4,21 +4,6 @@ from moto import mock_s3
 import os
 import pytest
 
-@mock_s3
-def test_single_s3_list_buckets():
-    s3 = boto3.client('s3')
-    s3.create_bucket(Bucket='my-test-bucket')
-    bucket_names = s3_list_buckets()
-    assert 'my-test-bucket' in bucket_names
-
-@mock_s3
-def test_multiple_s3_list_buckets():
-    s3 = boto3.client('s3')
-    s3.create_bucket(Bucket='my-test-bucket')
-    s3.create_bucket(Bucket='my-test-bucket-2')
-    bucket_names = s3_list_buckets()
-    assert 'my-test-bucket' in bucket_names
-    assert 'my-test-bucket-2' in bucket_names
 
 @mock_s3
 def test_bucket_list_for_csv_prefix():

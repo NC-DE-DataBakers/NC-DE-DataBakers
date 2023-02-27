@@ -1,6 +1,6 @@
 import pandas as pd
 
-def make_dimension():
+def create_dim_counterparty():
   """
   Summary: using pandas, read the counterparty and address csv injested from 
   the totesys DB,  merges the two dataframes on the address_id. creates a new 
@@ -40,8 +40,4 @@ def make_dimension():
     raise ValueError(f'ERROR: {DTW}')
   except Exception as error:
     raise ValueError(f'ERROR: {error}')
-  
-
-  
-  
   

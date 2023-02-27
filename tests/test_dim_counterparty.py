@@ -1,4 +1,4 @@
-from src.dim_counterparty import make_dimension
+from bin.dim_counterparty import create_dim_counterparty
 import pandas as pd
 import pytest
 import os
@@ -30,9 +30,9 @@ def test_missing_columns_raises_key_error():
   a.to_csv('./tmp/address.csv', index=False)
   
   with pytest.raises(ValueError):
-    make_dimension()
+    create_dim_counterparty()
   try:
-      make_dimension()
+      create_dim_counterparty()
   except Exception as e:
     assert e.args[0]== "ERROR: dim_counterparty - 'counterparty_legal_name' does not exist"
 
@@ -48,7 +48,7 @@ def test_converted_file_has_correct_column_names():
                         'country': [7,8,9], 'phone':[1,2,3]})
   d.to_csv('./tmp/address.csv', index=False)
 
-  make_dimension()
+  create_dim_counterparty()
 
   converted = pd.read_csv('./tmp/dim_counterparty.csv')
 
@@ -73,7 +73,7 @@ def test_converted_file_has_correctly_joined_addresses_on_address_id():
                         'country': [7,8,9,10], 'phone':[1,2,3,4]})
   d.to_csv('./tmp/address.csv', index=False)
 
-  make_dimension()
+  create_dim_counterparty()
 
   converted = pd.read_csv('./tmp/dim_counterparty.csv')
   

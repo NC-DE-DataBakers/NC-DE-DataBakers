@@ -1,8 +1,6 @@
 import pandas as pd
-from src.extractor_lambda import put_tables_to_csv
-put_tables_to_csv()
 
-def make_dimension():
+def create_dim_currency():
 
   """
   Summary: using pandas, read the currency csv injested from 

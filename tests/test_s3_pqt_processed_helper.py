@@ -25,7 +25,8 @@ def test_bucket_list_for_parquet_prefix():
     s3 = boto3.client('s3')
     s3.create_bucket(Bucket='nc-de-databakers-parquet-store-20202')
     s3.create_bucket(Bucket='my-test-bucket')
-    bucket_names = s3_list_prefix_parquet_buckets()
+    bucket_list = s3_list_buckets()
+    bucket_names = s3_list_prefix_parquet_buckets(bucket_li)
     assert bucket_names == 'nc-de-databakers-parquet-store-20202'
 
 @mock_s3
