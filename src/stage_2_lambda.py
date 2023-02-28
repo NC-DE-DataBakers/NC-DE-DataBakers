@@ -1,8 +1,18 @@
+"""This file contains lambda handler 2, transfers the csv files from 
+input key to processed key, also converts the raw data to star schema.
+This also converts the star schema data to parquet and uploads to the parquet input bucket.
+
+The file is run by calling this module with the python keyword.
+Example:
+    python src/stage_2_lambda.py
+To run the test file, please use the below:
+    pytest tests/test_stage_2_lambda.py
+"""
+
 from datetime import date, timedelta
 import pandas as pd
 import logging
 import boto3
-import glob
 import os
 import re
 
@@ -10,187 +20,194 @@ logger = logging.getLogger('MyLogger')
 logger.setLevel(logging.INFO)
 
 def lambda_handler(event, context):
-  """_summary_
 
-  Args:
-      event (_type_): _description_
-      context (_type_): _description_
-  """
 
-  try:
-    if not os.path.isdir('./tmp'):
-      os.makedirs('./tmp')
-    if not os.path.isdir('./pqt_tmp'):
-      os.makedirs('./pqt_tmp')
-  
-    #buckets
-    bucket_list = s3_list_buckets()
-    
-    #move csv into processed
-    csv_prefix = s3_list_prefix_csv_buckets(bucket_list)
-    s3_move_csv_files_to_csv_processed_key_and_delete_from_input(csv_prefix)
-    s3_create_csv_processed_completed_txt_file()
-    s3_csv_processed_upload_and_log(csv_prefix)
-    
-    #download csv files from s3
-    list_files_to_convert(bucket_list)
-    
-    #make dimemsions and fact tables
-    create_dim_currency()
-    create_dim_counterparty()
-    create_dim_date()
-    create_dim_design()
-    create_dim_location()
-    create_dim_staff()
-    
-    create_fact_sales_order()
-   
-    #convert to parquet
-    convert_csv_to_parquet()
-    
-    #update conversion csv
-    update_csv_conversion_file()
-    
-    #upload to the parquet input bucket
-    parquet_prefix = s3_list_prefix_parquet_buckets(bucket_list)
-    s3_upload_pqt_files_to_pqt_input_key(parquet_prefix)
-    s3_create_pqt_input_completed_txt_file()
-    s3_pqt_input_upload_and_log(parquet_prefix)
+    """_summary_
 
-  except:
-    pass
+    Args:
+        event (_type_): _description_
+        context (_type_): _description_
+    """
+
+    try:
+        if not os.path.isdir('./tmp'):
+            os.makedirs('./tmp')
+        if not os.path.isdir('./pqt_tmp'):
+            os.makedirs('./pqt_tmp')
+    
+        #buckets
+        bucket_list = s3_list_buckets()
+        
+        #move csv into processed
+        csv_prefix = s3_list_prefix_csv_buckets(bucket_list)
+        s3_move_csv_files_to_csv_processed_key_and_delete_from_input(csv_prefix)
+        s3_create_csv_processed_completed_txt_file()
+        s3_csv_processed_upload_and_log(csv_prefix)
+        
+        #download csv files from s3
+        list_files_to_convert(bucket_list)
+        
+        #make dimemsions and fact tables
+        create_dim_currency()
+        create_dim_counterparty()
+        create_dim_date()
+        create_dim_design()
+        create_dim_location()
+        create_dim_staff()
+        create_fact_sales_order()
+    
+        #convert to parquet
+        convert_csv_to_parquet()
+        
+        #update conversion csv
+        update_csv_conversion_file()
+        
+        #upload to the parquet input bucket
+        parquet_prefix = s3_list_prefix_parquet_buckets(bucket_list)
+        s3_upload_pqt_files_to_pqt_input_key(parquet_prefix)
+        s3_create_pqt_input_completed_txt_file()
+        s3_pqt_input_upload_and_log(parquet_prefix)
+
+    except:
+        pass
   
 def s3_list_buckets():
-  """ 
-    
+    """Using boto3 to list all buckets available in the s3.
+
     Args:
         Not required.
 
     Returns:
-        returns a list of buckets available in s3
-  """
-  s3=boto3.client('s3')
-  response=s3.list_buckets()['Buckets']
-  try:
-    return [bucket['Name'] for bucket in response]
-  except:
-    raise ValueError("ERROR: No buckets found")
+        Returns a list of buckets available in s3.
+    """
+    s3=boto3.client('s3')
+    response=s3.list_buckets()['Buckets']
+    try:
+        return [bucket['Name'] for bucket in response]
+    except:
+        raise ValueError("ERROR: No buckets found")
 
 def s3_parquet_prefix_buckets(bucket_list):
-  """ 
+    """Using the returned list of buckets from s3_list_buckets function,
+    filters the buckets for only those with a prefix of nc-de-databaskers-csv-store.
+
     Args:
         Not required.
 
     Returns:
-        returns the full specified bucket name
-  """
-  full_list = bucket_list
-  if full_list == []:
-      raise ValueError("ERROR: No buckets found")
-  for bucket in full_list:
-      if "nc-de-databakers-csv-store" in bucket:
-          return bucket
-  raise ValueError("ERROR: Prefix not found in any bucket")
+        Returns the full specified bucket name.
+    """
+    full_list = bucket_list
+    if full_list == []:
+        raise ValueError("ERROR: No buckets found")
+    for bucket in full_list:
+        if "nc-de-databakers-csv-store" in bucket:
+            return bucket
+    raise ValueError("ERROR: Prefix not found in any bucket")
 
 def list_files_to_convert(bucket_list):
-  """ 
-    downloads all the files to a temporary local directory
+    """Using boto3, downloads all the files to a temporary local directory 'tmp'.
+    
     Args:
         Not required.
 
     Returns:
-        nothing
-        
-  """
-  s3=boto3.client('s3')
-  bucket = s3_parquet_prefix_buckets(bucket_list)
-  list=s3.list_objects(Bucket=bucket)['Contents']
-  for key in list:
-    s3.download_file(bucket, key['Key'], f'./tmp/{key["Key"].split("/")[1]}')
+        Nothing.      
+    """
+    s3=boto3.client('s3')
+    bucket = s3_parquet_prefix_buckets(bucket_list)
+    list=s3.list_objects(Bucket=bucket)['Contents']
+    for key in list:
+        s3.download_file(bucket, key['Key'], f'./tmp/{key["Key"].split("/")[1]}')
 
 def create_dim_counterparty():
-  """
-  Summary: using pandas, read the counterparty and address csv injested from 
-  the totesys DB,  merges the two dataframes on the address_id. creates a new 
-  dataframe from the merged data in the schema required.
+    """Using pandas to read the counterparty.csv and address.csv files injested from 
+    the totesys DB,  merges the two dataframes on the address_id. creates a new 
+    dataframe from the merged data in the schema required.
+        
+    Args:
+        Not required.
+    Returns:
+        Writes a star schema CSV file from the counterparty.csv and address.csv files,
+        storing the dim_counterparty.csv in the tmp directory.
+    Raises:
+        ValueError: on KeyError - ERROR: dim_counterparty - "column" does not exist
+        ValueError: on FileNotFoundError - missing files or directory
+        ValueError: on pd.errors.EmptyDataError - files exist but are empty
+        ValueError: on pd.errors.DtypeWarning - column data mismatch
+        Exception: Blanket to catch unhandled error for cloudwatch
+    """
+    try:
+        counter_party_df = pd.read_csv('./tmp/counterparty.csv')
+        address = pd.read_csv('./tmp/address.csv')
+        counter_party_df = counter_party_df.rename(columns={"legal_address_id":"address_id"})
+        merged_df = pd.merge(counter_party_df, address, on='address_id')
+    
+        dim_counterparty = pd.DataFrame(data={'counterparty_id': merged_df['counterparty_id'], 
+                                        'counterparty_legal_name': merged_df['counterparty_legal_name'],
+                                        'counterparty_legal_address_line_1' : merged_df['address_line_1'], 
+                                        'counterparty_legal_address_line_2' : merged_df['address_line_2'], 
+                                        'counterparty_legal_district': merged_df['district'],
+                                        'counterparty_legal_city':merged_df['city'],
+                                        'counterparty_legal_postal_code':merged_df['postal_code'],
+                                        'counterparty_legal_country': merged_df['country'],
+                                        'counterparty_legal_phone_number': merged_df['phone']}).sort_values(by=['counterparty_id'])
 
-  Raises:
-      ValueError: on KeyError - ERROR: dim_counterparty - "column" does not exist
-      ValueError: on FileNotFoundError - missing files or directory
-      ValueError: on pd.errors.EmptyDataError - files exist but are empty
-      ValueError: on pd.errors.DtypeWarning - column data mismatch
-      Exception: Blanket to catch unhandled error for cloudwatch
-  """
-  try:
-    counter_party_df = pd.read_csv('./tmp/counterparty.csv')
-    address = pd.read_csv('./tmp/address.csv')
-    counter_party_df = counter_party_df.rename(columns={"legal_address_id":"address_id"})
-    merged_df = pd.merge(counter_party_df, address, on='address_id')
-   
-    dim_counterparty = pd.DataFrame(data={'counterparty_id': merged_df['counterparty_id'], 
-                                      'counterparty_legal_name': merged_df['counterparty_legal_name'],
-                                      'counterparty_legal_address_line_1' : merged_df['address_line_1'], 
-                                      'counterparty_legal_address_line_2' : merged_df['address_line_2'], 
-                                      'counterparty_legal_district': merged_df['district'],
-                                      'counterparty_legal_city':merged_df['city'],
-                                      'counterparty_legal_postal_code':merged_df['postal_code'],
-                                      'counterparty_legal_country': merged_df['country'],
-                                      'counterparty_legal_phone_number': merged_df['phone']}).sort_values(by=['counterparty_id'])
-
-    dim_counterparty.to_csv('./tmp/dim_counterparty.csv', index=False)
-  except KeyError as error:
-    raise ValueError(f'ERROR: dim_counterparty - {error} does not exist')
-  except FileNotFoundError as error:
-    raise ValueError(f'ERROR: {error}')
-  except pd.errors.EmptyDataError as EDE:
-    raise ValueError(f'ERROR: {EDE}')
-  except pd.errors.DtypeWarning as DTW:
-    raise ValueError(f'ERROR: {DTW}')
-  except Exception as error:
-    raise ValueError(f'ERROR: {error}')
+        dim_counterparty.to_csv('./tmp/dim_counterparty.csv', index=False)
+    except KeyError as error:
+        raise ValueError(f'ERROR: dim_counterparty - {error} does not exist')
+    except FileNotFoundError as error:
+        raise ValueError(f'ERROR: {error}')
+    except pd.errors.EmptyDataError as EDE:
+        raise ValueError(f'ERROR: {EDE}')
+    except pd.errors.DtypeWarning as DTW:
+        raise ValueError(f'ERROR: {DTW}')
+    except Exception as error:
+        raise ValueError(f'ERROR: {error}')
 
 def create_dim_currency():
+    """Using pandas to read the currency.csv file injested from 
+    the totesys DB, creates a new dataframe from the data in the schema required.
+    
+    Args:
+        Not required.
+    Returns:
+        Writes a star schema CSV file from the currency.csv file,
+        storing the dim_currency.csv in the tmp directory.
+    Raises:
+        ValueError: on KeyError - ERROR: dim_currency - "column" does not exist
+        ValueError: on FileNotFoundError - missing files or directory
+        ValueError: on pd.errors.EmptyDataError - files exist but are empty
+        ValueError: on pd.errors.DtypeWarning - column data mismatch
+        Exception: Blanket to catch unhandled error for cloudwatch
+    """
 
-  """
-  Summary: using pandas, read the currency csv injested from 
-  the totesys DB. creates a new dataframe dataframe, changes the shorthand 
-  currency code to the full name, formats in the schema required.
+    try:
+        cur_df = pd.read_csv('./tmp/currency.csv')
+    
+        dim_currency = pd.DataFrame(data={'currency_id': cur_df['currency_id'], 'currency_code': cur_df['currency_code'], 'currency_name': cur_df['currency_code']})
+        dim_currency['currency_name'] = dim_currency['currency_name'].str.replace('GBP', 'Pounds')
+        dim_currency['currency_name'] = dim_currency['currency_name'].str.replace('USD', 'Dollars')
+        dim_currency['currency_name'] = dim_currency['currency_name'].str.replace('EUR', 'Euros')
+    
+        dim_currency.to_csv('./tmp/dim_currency.csv', index=False)
+    except KeyError as error:
+        raise ValueError(f'ERROR: dim_currency - {error} does not exist')
+    except FileNotFoundError as error:
+        raise ValueError(f'ERROR: {error}')
+    except pd.errors.EmptyDataError as EDE:
+        raise ValueError(f'ERROR: {EDE}')
+    except pd.errors.DtypeWarning as DTW:
+        raise ValueError(f'ERROR: {DTW}')
+    except Exception as error:
+        raise ValueError(f'ERROR: {error}')
 
-  Raises:
-      ValueError: on KeyError - ERROR: dim_counterparty - "column" does not exist
-      ValueError: on FileNotFoundError - missing files or directory
-      ValueError: on pd.errors.EmptyDataError - files exist but are empty
-      ValueError: on pd.errors.DtypeWarning - column data mismatch
-      Exception: Blanket to catch unhandled error for cloudwatch
-  """
-
-  try:
-    cur_df = pd.read_csv('./tmp/currency.csv')
-  
-    dim_currency = pd.DataFrame(data={'currency_id': cur_df['currency_id'], 'currency_code': cur_df['currency_code'], 'currency_name': cur_df['currency_code']})
-    dim_currency['currency_name'] = dim_currency['currency_name'].str.replace('GBP', 'Pounds')
-    dim_currency['currency_name'] = dim_currency['currency_name'].str.replace('USD', 'Dollars')
-    dim_currency['currency_name'] = dim_currency['currency_name'].str.replace('EUR', 'Euros')
-  
-    dim_currency.to_csv('./tmp/dim_currency.csv', index=False)
-  except KeyError as error:
-    raise ValueError(f'ERROR: dim_currency - {error} does not exist')
-  except FileNotFoundError as error:
-    raise ValueError(f'ERROR: {error}')
-  except pd.errors.EmptyDataError as EDE:
-    raise ValueError(f'ERROR: {EDE}')
-  except pd.errors.DtypeWarning as DTW:
-    raise ValueError(f'ERROR: {DTW}')
-  except Exception as error:
-    raise ValueError(f'ERROR: {error}')
-
-def create_dim_date():
-  pass
 
 def create_dim_staff():
-    """Using pandas to read the staff.csv and department.csv files to merge and create
-    the star schema dataframe.
-    
+    """Using pandas to read the staff.csv and department.csv files injested from 
+    the totesys DB,  merges the two dataframes on the department_id. creates a new 
+    dataframe from the merged data in the schema required.
+        
     Args:
         Not required.
     Returns:
@@ -230,12 +247,13 @@ def create_dim_staff():
 
 
 def create_dim_design():
-    """Using pandas to read the design.csv file to create the star schema dataframe.
-    
+    """Using pandas to read the design.csv file injested from the totesys DB, 
+    creates a new dataframe from the data in the schema required.
+
     Args:
         Not required.
     Returns:
-        Writes a star schema CSV file from the staff.csv and department.csv files,
+        Writes a star schema CSV file from the design.csv file,
         storing the dim_design.csv in the tmp directory.
     Raises:
         ValueError: on KeyError - ERROR: dim_design - "column" does not exist
@@ -264,7 +282,8 @@ def create_dim_design():
         raise ValueError(f'ERROR: {error}')
 
 def create_dim_location():
-    """Using pandas to read the address.csv file to create the star schema dataframe.
+    """Using pandas to read the address.csv file injested from the totesys DB, 
+    creates a new dataframe from the data in the schema required.
     
     Args:
         Not required.
@@ -302,6 +321,22 @@ def create_dim_location():
         raise ValueError(f'ERROR: {error}')
 
 def create_dim_date():
+    """Using pandas to read the sales_order.csv file injested from the totesys DB, 
+    quantifying the lower and upper bounds of minimum and maximum dates to
+    create a new dataframe with each date attribute from the data in the schema required.
+    
+    Args:
+        Not required.
+    Returns:
+        Writes a star schema CSV file from the sales_order.csv file,
+        storing the dim_date.csv in the tmp directory.
+    Raises:
+        ValueError: on KeyError - ERROR: dim_date - "column" does not exist
+        ValueError: on FileNotFoundError - missing files or directory
+        ValueError: on pd.errors.EmptyDataError - files exist but are empty
+        ValueError: on pd.errors.DtypeWarning - column data mismatch
+        Exception: Blanket to catch unhandled error for cloudwatch
+    """
     try:
         df = pd.read_csv('./tmp/sales_order.csv')
 
@@ -350,6 +385,21 @@ def create_dim_date():
         raise ValueError(f'ERROR: {error}')
 
 def create_fact_sales_order():
+    """Using pandas to read the sales_order.csv file injested from the totesys DB, 
+    creates a new dataframe from the data, utilising datetime to conform to the schema required.
+    
+    Args:
+        Not required.
+    Returns:
+        Writes a star schema CSV file from the sales_order.csv file,
+        storing the fact_sales_order.csv in the tmp directory.
+    Raises:
+        ValueError: on KeyError - ERROR: fact_sales_order - "column" does not exist
+        ValueError: on FileNotFoundError - missing files or directory
+        ValueError: on pd.errors.EmptyDataError - files exist but are empty
+        ValueError: on pd.errors.DtypeWarning - column data mismatch
+        Exception: Blanket to catch unhandled error for cloudwatch
+    """
     try:
         fact_sales = pd.read_csv('./tmp/sales_order.csv')
 
@@ -363,14 +413,11 @@ def create_fact_sales_order():
         fact_sales['agreed_payment_date'] = fact_sales['agreed_payment_date'].dt.date
 
         fact_sales.rename({'created_at': 'created_date', 'last_updated': 'last_updated_date', 'staff_id': 'sales_staff_id'}, axis=1, inplace=True)
-
         fact_sales = fact_sales[['sales_order_id', 'created_date', 'created_time', 'last_updated_date', 'last_updated_time', 'sales_staff_id', 'counterparty_id', 'units_sold', 'unit_price', 'currency_id', 'design_id', 'agreed_payment_date', 'agreed_delivery_date', 'agreed_delivery_location_id']]
-
         fact_sales.to_csv('./tmp/fact_sales_order.csv', index=False)
 
-
     except KeyError as error:
-        raise ValueError(f'ERROR: dim_counterparty - {error} does not exist')
+        raise ValueError(f'ERROR: fact_sales_order - {error} does not exist')
     except FileNotFoundError as error:
         raise ValueError(f'ERROR: {error}')
     except pd.errors.EmptyDataError as EDE:
@@ -383,77 +430,98 @@ def create_fact_sales_order():
         raise ValueError(f'ERROR: {error}')
 
 def convert_csv_to_parquet():
-  """ 
-    locally stored files from "./tmp/dim_*.csv" "./tmp/fact*.csv" are converted to parquet,
-    and saved in a pqt_tmp folder
+    """Obtains all dim and fact tables from tmp directory and converts to parquet format using Pandas.
+    This is then exported to a temporary directory "pqt_tmp".
+    
     Args:
         Not required.
-
     Returns:
-        nothing
+        Parquet converted files into a pqt_tmp directory.
+    Raises:
+        ValueError: on pd.errors.EmptyDataError - files exist but are empty
+        Exception: Blanket to catch unhandled errors
+    """
+    
+    file_list = os.listdir('./tmp')
+    dim_re = re.compile(r'dim_\w+.csv')
+    dims = [ file for file in file_list if dim_re.match(file) ]
 
-  """
-  
-  file_list = os.listdir('./tmp')
-  dim_re = re.compile(r'dim_\w+.csv')
-  dims = [ file for file in file_list if dim_re.match(file) ]
+    fact_re = re.compile(r'fact_\w+.csv')
+    facts = [ file for file in file_list if fact_re.match(file) ]
 
-  fact_re = re.compile(r'fact_\w+.csv')
-  facts = [ file for file in file_list if fact_re.match(file) ]
+    file_list = dims + facts
+    
+    if len(file_list) < 1:
+        raise ValueError('ERROR: No CSV files to convert to parquet')
+    for file in file_list:
+        filename = os.path.basename(file).split('.')[0]
+        df = pd.read_csv(f'./tmp/{file}')
 
-  file_list = dims + facts
-  
-  if len(file_list) < 1:
-    raise ValueError('ERROR: No CSV files to convert to parquet')
-  for file in file_list:
-    filename = os.path.basename(file).split('.')[0]
-    df = pd.read_csv(f'./tmp/{file}')
-
-    if not os.path.exists("pqt_tmp"):
-        os.makedirs("pqt_tmp")
-    try:
-      df.to_parquet(f'./pqt_tmp/{filename}.parquet')
-    except pd.errors.EmptyDataError as EDE:
-      raise ValueError(f'ERROR: {EDE}')
-    except Exception:
-      raise ValueError(f'ERROR: {Exception}')
+        if not os.path.exists("pqt_tmp"):
+            os.makedirs("pqt_tmp")
+        try:
+            df.to_parquet(f'./pqt_tmp/{filename}.parquet')
+        except pd.errors.EmptyDataError as EDE:
+            raise ValueError(f'ERROR: {EDE}')
+        except Exception:
+            raise ValueError(f'ERROR: {Exception}')
 
 def update_csv_conversion_file():
-  """ 
-    function downloads the Run number in the csv_conversion.txt is ammended to increment the count,#
-    then uploads to processed_csv_key on the bucket.
+    """ 
+        function downloads the Run number in the csv_conversion.txt is ammended to increment the count,#
+        then uploads to processed_csv_key on the bucket.
+        Args:
+            Not required.
+
+        Returns:
+            nothing
+    """
+    """
+    Downloads the Run number in the csv_conversion.txt and is amended to increment the count,
+    then uploads to processed_csv_key in the s3 bucket.
+    
     Args:
         Not required.
-
     Returns:
-        nothing
-  """
-  s3=boto3.client('s3')
-  full_list = s3_list_buckets()
-  bucket_str = ''
-  for bucket in full_list:
-      if "nc-de-databakers-csv-store" in bucket:
-            bucket_str = bucket
-  s3.download_file(bucket_str, 'processed_csv_key/csv_conversion.txt', './tmp/csv_conversion.txt')
-  
-  contents = open('./tmp/csv_conversion.txt', 'r').read()
-  num = int(contents.split(' ')[1])
-  with open('./tmp/csv_conversion.txt', 'w+') as file:
-    file.write(f'Run {num+1}')
-  s3.upload_file("./tmp/csv_conversion.txt", bucket_str, "processed_csv_key/csv_conversion.txt")
-
-
-#s3 proccessed
+        Uploads to processed_csv_key in the s3 bucket.
+    Raises:
+        No error handling.
+    """
+    s3=boto3.client('s3')
+    full_list = s3_list_buckets()
+    bucket_str = ''
+    for bucket in full_list:
+        if "nc-de-databakers-csv-store" in bucket:
+                bucket_str = bucket
+    s3.download_file(bucket_str, 'processed_csv_key/csv_conversion.txt', './tmp/csv_conversion.txt')
+    
+    contents = open('./tmp/csv_conversion.txt', 'r').read()
+    num = int(contents.split(' ')[1])
+    with open('./tmp/csv_conversion.txt', 'w+') as file:
+        file.write(f'Run {num+1}')
+    s3.upload_file("./tmp/csv_conversion.txt", bucket_str, "processed_csv_key/csv_conversion.txt")
 
 
 def s3_list_prefix_csv_buckets():
-    """Using the s3 client, we will return the name of the s3 bucket containing the "nc-de-databakers-csv-store-" prefix buckets through a for loop of the list returned in s3_list_buckets, we will also add some error handling that checks if the bucket is empty, or if the prefix is not found
+    """Using the s3 client, we will return the name of the s3 bucket containing the "nc-de-databakers-csv-store-" prefix buckets through a for loop of the list returned in s3_list_buckets, 
+    we will also add some error handling that checks if the bucket is empty, or if the prefix is not found
     
     Args:
         Not required.
 
     Returns:
         The name of the correct prefixed bucket
+    """
+    """
+    Downloads the Run number in the csv_conversion.txt and is amended to increment the count,
+    then uploads to processed_csv_key in the s3 bucket.
+    
+    Args:
+        Not required.
+    Returns:
+        Uploads to processed_csv_key in the s3 bucket.
+    Raises:
+        No error handling.
     """
     full_list = s3_list_buckets()
     if full_list == []:
