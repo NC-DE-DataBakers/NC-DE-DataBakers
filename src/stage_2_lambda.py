@@ -503,25 +503,15 @@ def update_csv_conversion_file():
 
 
 def s3_list_prefix_csv_buckets():
-    """Using the s3 client, we will return the name of the s3 bucket containing the "nc-de-databakers-csv-store-" prefix buckets through a for loop of the list returned in s3_list_buckets, 
-    we will also add some error handling that checks if the bucket is empty, or if the prefix is not found
-    
-    Args:
-        Not required.
+    """Uses s3_list_buckets function to list all buckets and a for loop to filter
+    with prefix for csv store.
 
-    Returns:
-        The name of the correct prefixed bucket
-    """
-    """
-    Downloads the Run number in the csv_conversion.txt and is amended to increment the count,
-    then uploads to processed_csv_key in the s3 bucket.
-    
     Args:
         Not required.
     Returns:
-        Uploads to processed_csv_key in the s3 bucket.
+        Matching prefixed bucket.
     Raises:
-        No error handling.
+        ValueError: ERROR: If prefix not found in any bucket.
     """
     full_list = s3_list_buckets()
     if full_list == []:
@@ -532,13 +522,14 @@ def s3_list_prefix_csv_buckets():
     raise ValueError("ERROR: Prefix not found in any bucket")
 
 def s3_list_prefix_parquet_buckets(bucket_list):
-    """Using the s3 client, we will return the name of the s3 bucket containing the "nc-de-databakers-parquet-store-" prefix buckets through a for loop of the list returned in s3_list_buckets, we will also add some error handling that checks if the bucket is empty, or if the prefix is not found
-    
-    Args:
-        Not required.
+    """Uses boto3 to list all buckets with prefix for parquet store.
 
+    Args:
+        bucket_list: return value of s3_list_buckets function
     Returns:
-        The name of the correct prefixed bucket, ValueError otherwise
+        Matching prefixed bucket.
+    Raises:
+        ValueError: ERROR: If prefix not found in any bucket.
     """
     full_list = bucket_list
     if full_list == []:
@@ -549,13 +540,16 @@ def s3_list_prefix_parquet_buckets(bucket_list):
     raise ValueError("ERROR: Prefix not found in any bucket")
 
 def s3_pqt_input_setup_success(parquet_prefix):
-    """Using the s3 client and a for loop, we will check if the parquet bucket contains the setup success text file in the input key, to ensure that terraform has been setup correctly, if it does not return with the desired outcome, an error will be raised regarding the terraform deployment
-    
-    Args:
-        Not required.
+    """Using the s3 client and a for loop, this function will check if the parquet 
+    bucket contains the setup success text file in the input key, 
+    to ensure that terraform has been setup correctly. 
 
+    Args:
+        parquet_prefix: return value of function s3_list_prefix_parquet_buckets(bucket_list)
     Returns:
-        True if file is found, ValueError otherwise.
+        True (boolean)
+    Raises:
+        ValueError: ERROR: If setup file not found.
     """
     s3=boto3.client('s3')
     bucket = parquet_prefix
@@ -567,13 +561,16 @@ def s3_pqt_input_setup_success(parquet_prefix):
         raise ValueError("ERROR: Terraform deployment unsuccessful")
 
 def s3_csv_processed_setup_success(csv_prefix):
-    """Using the s3 client and a for loop, we will check if the csv bucket contains the setup success text file in the processed key, to ensure that terraform has been setup correctly, if it does not return with the desired outcome, an error will be raised regarding the terraform deployment
-    
-    Args:
-        Not required.
+    """Using the s3 client and a for loop, we will check if the csv bucket
+    contains the setup success text file in the processed key, 
+    to ensure that terraform has been setup correctly.
 
+    Args:
+        parquet_prefix: return value of function s3_list_prefix_parquet_buckets(bucket_list)
     Returns:
-        True if file is found, ValueError otherwise.
+        True (boolean)
+    Raises:
+        ValueError: ERROR: If setup file not found.
     """
     s3=boto3.client('s3')
     bucket = csv_prefix
@@ -585,13 +582,17 @@ def s3_csv_processed_setup_success(csv_prefix):
         raise ValueError("ERROR: Terraform deployment unsuccessful")
 
 def s3_upload_pqt_files_to_pqt_input_key(parquet_prefix):
-    """Using the s3 resource and a for loop, we will first check if the csv bucket contains the setup success text file in the processed key, to ensure that terraform has been setup correctly, the convert parquet function would have stored the converted parquets in the pqt_temp locat directory. The for loop will allow us to iterrate throught these files and upload them one by one using the s3 upload file resource. If there is an error, when looking for the directory, a value error will be raised informing the user of a terraform issue.
+    """
+    function to move files from processed_csv_key to the input_parquet_key, using 
+    boto3 resource. invoking s3_csv_processed_setup_success(csv_prefix)
+    if this returns true, transfers the files
     
     Args:
-        Not required.
-
+        Not Required.
     Returns:
-        Nothing, unless there is an error.
+        Nothing.
+    Raises:
+         ValueError() - if s3_pqt_input_setup_success(parquet_prefix) returns false
     """
     s3=boto3.resource('s3')
     if s3_pqt_input_setup_success(parquet_prefix):
@@ -602,14 +603,24 @@ def s3_upload_pqt_files_to_pqt_input_key(parquet_prefix):
         raise ValueError("ERROR: Terraform deployment unsuccessful")
 
 def s3_create_pqt_input_completed_txt_file():
-    """Using the os module we will check if the local directory contains a run number file. This will happen after the previos upload function is invoked. If this file does not exist, we will pass it in "0", then we will increment it each time this current function is run by "1". At the same time a separate file will read from the run number file and log each time this function is run appending the run number on another line.
+    """
+    Using the os module we will check if the local directory contains
+    a run number file, If this file does not exist, create and 
+    pass it in "0", then we will increment it each time this current 
+    function is run by "1". 
+    At the same time a separate file will read from the run number
+    file and log each time this function is run appending the run number
+    on another line.
     
     Args:
-        Not required.
-
+        Not Required.
     Returns:
         Nothing.
+    Raises:
+        Nothing
     """
+
+    
     if not os.path.exists("./tmp/pqt_input_run_number.txt"):
         with open("./tmp/pqt_input_run_number.txt", "w") as rn_f:
             rn_f.write("0")
@@ -622,13 +633,16 @@ def s3_create_pqt_input_completed_txt_file():
 
 
 def s3_move_csv_files_to_csv_processed_key_and_delete_from_input(csv_prefix):
-    """Using the s3 resource and s3 client we will attempt to move files from the csv bucket input key to the csv buckety processed key. We will check the name of the csv bucket using the s3 list and we will also check that the set-up for the processed key waws successful. If not, it will throw an error.
- 
+    """
+    function to move files from input_csv_key to the processed_csv_key, using both
+    boto3 client and resource. invoking s3_csv_processed_setup_success(csv_prefix)
+    if this returns true, transfers the files
     Args:
-        Not required.
-
+        csv_prefix
     Returns:
-        Nothing, unless there is an error.
+        Nothing.
+    Raises:
+        ValueError() - if s3_csv_processed_setup_success(csv_prefix) returns false
     """
     s3res=boto3.resource('s3')
     s3cli=boto3.client('s3')
@@ -647,12 +661,16 @@ def s3_move_csv_files_to_csv_processed_key_and_delete_from_input(csv_prefix):
         raise ValueError("ERROR: Terraform deployment unsuccessful")
 
 def s3_create_csv_processed_completed_txt_file():
-    """Using the os module we will check if the local directory contains a run number file. This will happen after the previos upload function is invoked. If this file does not exist, we will pass it in "0", then we will increment it each time this current function is run by "1". At the same time a separate file will read from the run number file and log each time this function is run appending the run number on another line.
-    
+    """
+    function designed to increment the run number and export history
+    saved in the log files.
+    if the initial run does not contain a run number file, 
+    it will make one.
     Args:
         Not required.
-
     Returns:
+        Nothing.
+    Raises:
         Nothing.
     """
     
@@ -667,12 +685,13 @@ def s3_create_csv_processed_completed_txt_file():
         f.write(f'run {run_num}\n')
 
 def s3_pqt_input_upload_and_log(parquet_prefix):
-    """Using the s3 resource we will upload the pqt input completed text file to the input parquet bucket in the s3, after uploading and updating the run count.
-    
+    """
+    uploads the pqt_input_exported_completed.txt to the input_parquet_key
     Args:
-        Not required.
-
+        parquet_prefix
     Returns:
+        Nothing.
+    Raises:
         Nothing.
     """
 
@@ -680,15 +699,15 @@ def s3_pqt_input_upload_and_log(parquet_prefix):
     s3.Bucket(parquet_prefix).upload_file('./tmp/pqt_input_export_completed.txt', 'input_parquet_key/pqt_input_export_completed.txt')
 
 def s3_csv_processed_upload_and_log(csv_prefix):
-    """Using the s3 resource we will upload the csv processed completed text file to the processed csv bucket in the s3, after moving the csv files from the csv input key to the processed csv key and updating the run count.
-    
+    """
+    uploads the csv_processesd_exported_completed.txt to the processed_csv_key
     Args:
-        Not required.
-
+        csv_prefix
     Returns:
+        Nothing.
+    Raises:
         Nothing.
     """
     
     s3=boto3.resource('s3')
     s3.Bucket(csv_prefix).upload_file('./tmp/csv_processed_export_completed.txt', 'processed_csv_key/csv_processed_export_completed.txt')
-
