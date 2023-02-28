@@ -32,6 +32,10 @@ def lambda_handler(event, context):
     try:
         if not os.path.isdir('./tmp'):
             os.makedirs('./tmp')
+            os.makedirs('./tmp/csv_input')
+            os.makedirs('./tmp/csv_processed')
+            os.makedirs('./tmp/pqt_input')
+            os.makedirs('./tmp/pqt_processed')
         else:
             clean_tmp()
     
@@ -138,7 +142,7 @@ def list_files_to_convert(bucket_list):
     list=s3.list_objects(Bucket=bucket)['Contents']
     for key in list:
         if ('input_csv_key' in key['Key']):
-            s3.download_file(bucket, key['Key'], f'./tmp/{key["Key"].split("/")[1]}')
+            s3.download_file(bucket, key['Key'], f'./tmp/csv_processed/{key["Key"].split("/")[1]}')
 
 def create_dim_counterparty():
     """Using pandas to read the counterparty.csv and address.csv files injested from 
@@ -158,8 +162,8 @@ def create_dim_counterparty():
         Exception: Blanket to catch unhandled error for cloudwatch
     """
     try:
-        counter_party_df = pd.read_csv('./tmp/counterparty.csv')
-        address = pd.read_csv('./tmp/address.csv')
+        counter_party_df = pd.read_csv('./tmp/csv_processed/counterparty.csv')
+        address = pd.read_csv('./tmp/csv_processed/address.csv')
         counter_party_df = counter_party_df.rename(columns={"legal_address_id":"address_id"})
         merged_df = pd.merge(counter_party_df, address, on='address_id')
     
@@ -173,7 +177,7 @@ def create_dim_counterparty():
                                         'counterparty_legal_country': merged_df['country'],
                                         'counterparty_legal_phone_number': merged_df['phone']}).sort_values(by=['counterparty_id'])
 
-        dim_counterparty.to_csv('./tmp/dim_counterparty.csv', index=False)
+        dim_counterparty.to_csv('./tmp/csv_processed/dim_counterparty.csv', index=False)
     except KeyError as error:
         raise ValueError(f'ERROR: dim_counterparty - {error} does not exist')
     except FileNotFoundError as error:
@@ -203,14 +207,14 @@ def create_dim_currency():
     """
 
     try:
-        cur_df = pd.read_csv('./tmp/currency.csv')
+        cur_df = pd.read_csv('./tmp/csv_processed/currency.csv')
     
         dim_currency = pd.DataFrame(data={'currency_id': cur_df['currency_id'], 'currency_code': cur_df['currency_code'], 'currency_name': cur_df['currency_code']})
         dim_currency['currency_name'] = dim_currency['currency_name'].str.replace('GBP', 'Pounds')
         dim_currency['currency_name'] = dim_currency['currency_name'].str.replace('USD', 'Dollars')
         dim_currency['currency_name'] = dim_currency['currency_name'].str.replace('EUR', 'Euros')
     
-        dim_currency.to_csv('./tmp/dim_currency.csv', index=False)
+        dim_currency.to_csv('./tmp/csv_processed/dim_currency.csv', index=False)
     except KeyError as error:
         raise ValueError(f'ERROR: dim_currency - {error} does not exist')
     except FileNotFoundError as error:
@@ -241,8 +245,8 @@ def create_dim_staff():
         Exception: Blanket to catch unhandled error for cloudwatch
     """
     try:
-        staff_df = pd.read_csv('./tmp/staff.csv')
-        dept_df = pd.read_csv('./tmp/department.csv')
+        staff_df = pd.read_csv('./tmp/csv_processed/staff.csv')
+        dept_df = pd.read_csv('./tmp/csv_processed/department.csv')
         staff_dept_df = pd.merge(
             staff_df, dept_df, on='department_id').sort_values('staff_id')
         dim_staff = pd.DataFrame(data={'staff_id': staff_dept_df['staff_id'],
@@ -252,7 +256,7 @@ def create_dim_staff():
                                     'location': staff_dept_df['location'],
                                     'email_address': staff_dept_df['email_address']
                                     })
-        dim_staff.to_csv('./tmp/dim_staff.csv', index=False)
+        dim_staff.to_csv('./tmp/csv_processed/dim_staff.csv', index=False)
         return dim_staff
     except KeyError as error:
         raise ValueError(f'ERROR: dim_staff - {error} does not exist')
@@ -283,12 +287,12 @@ def create_dim_design():
         Exception: Blanket to catch unhandled error for cloudwatch
     """
     try:
-        des_df = pd.read_csv('./tmp/design.csv')
+        des_df = pd.read_csv('./tmp/csv_processed/design.csv')
         dim_design = pd.DataFrame(data={'design_id': des_df['design_id'],
                                         'design_name': des_df['design_name'],
                                         'file_location': des_df['file_location'],
                                         'file_name': des_df['file_name']})
-        dim_design.to_csv('./tmp/dim_design.csv', index=False)
+        dim_design.to_csv('./tmp/csv_processed/dim_design.csv', index=False)
         return dim_design
     except KeyError as error:
         raise ValueError(f'ERROR: dim_design - {error} does not exist')
@@ -318,7 +322,7 @@ def create_dim_location():
         Exception: Blanket to catch unhandled error for cloudwatch
     """
     try:
-        loc_df = pd.read_csv('./tmp/address.csv')
+        loc_df = pd.read_csv('./tmp/csv_processed/address.csv')
         dim_location = pd.DataFrame(data={'location_id': loc_df['address_id'],
                                         'address_line_1': loc_df['address_line_1'],
                                         'address_line_2': loc_df['address_line_2'],
@@ -327,7 +331,7 @@ def create_dim_location():
                                         'postal_code': loc_df['postal_code'], 
                                         'country': loc_df['country'],
                                         'phone': loc_df['phone']})
-        dim_location.to_csv('./tmp/dim_location.csv', index=False)
+        dim_location.to_csv('./tmp/csv_processed/dim_location.csv', index=False)
         return dim_location
     except KeyError as error:
         raise ValueError(f'ERROR: dim_location - {error} does not exist')
@@ -358,7 +362,7 @@ def create_dim_date():
         Exception: Blanket to catch unhandled error for cloudwatch
     """
     try:
-        df = pd.read_csv('./tmp/sales_order.csv')
+        df = pd.read_csv('./tmp/csv_processed/sales_order.csv')
 
         df[['created_at', 'last_updated', 'agreed_delivery_date', 'agreed_payment_date']] = df[['created_at', 'last_updated', 'agreed_delivery_date', 'agreed_payment_date']] .apply(pd.to_datetime, format="%Y-%m-%d %H:%M:%S.%f")
         
@@ -389,7 +393,7 @@ def create_dim_date():
         dim_date['month_name'] = dim_date['date_id'].dt.month_name()
         dim_date['quarter'] = dim_date['date_id'].dt.quarter
 
-        dim_date.to_csv('./tmp/dim_date.csv', index=False)
+        dim_date.to_csv('./tmp/csv_processed/dim_date.csv', index=False)
 
     except KeyError as error:
         raise ValueError(f'ERROR: dim_date - {error} does not exist')
@@ -421,7 +425,7 @@ def create_fact_sales_order():
         Exception: Blanket to catch unhandled error for cloudwatch
     """
     try:
-        fact_sales = pd.read_csv('./tmp/sales_order.csv')
+        fact_sales = pd.read_csv('./tmp/csv_processed/sales_order.csv')
 
         fact_sales[['created_at', 'last_updated', 'agreed_delivery_date', 'agreed_payment_date']] = fact_sales[['created_at', 'last_updated', 'agreed_delivery_date', 'agreed_payment_date']].apply(pd.to_datetime, format="%Y-%m-%d %H:%M:%S.%f")
 
@@ -434,7 +438,7 @@ def create_fact_sales_order():
 
         fact_sales.rename({'created_at': 'created_date', 'last_updated': 'last_updated_date', 'staff_id': 'sales_staff_id'}, axis=1, inplace=True)
         fact_sales = fact_sales[['sales_order_id', 'created_date', 'created_time', 'last_updated_date', 'last_updated_time', 'sales_staff_id', 'counterparty_id', 'units_sold', 'unit_price', 'currency_id', 'design_id', 'agreed_payment_date', 'agreed_delivery_date', 'agreed_delivery_location_id']]
-        fact_sales.to_csv('./tmp/fact_sales_order.csv', index=False)
+        fact_sales.to_csv('./tmp/csv_processed/fact_sales_order.csv', index=False)
 
     except KeyError as error:
         raise ValueError(f'ERROR: fact_sales_order - {error} does not exist')
@@ -451,18 +455,18 @@ def create_fact_sales_order():
 
 def convert_csv_to_parquet():
     """Obtains all dim and fact tables from tmp directory and converts to parquet format using Pandas.
-    This is then exported to a temporary directory "pqt_tmp".
+    This is then exported to a temporary directory "tmp/pqt_processed".
     
     Args:
         Not required.
     Returns:
-        Parquet converted files into a pqt_tmp directory.
+        Parquet converted files into a tmp/pqt_processed directory.
     Raises:
         ValueError: on pd.errors.EmptyDataError - files exist but are empty
         Exception: Blanket to catch unhandled errors
     """
     
-    file_list = os.listdir('./tmp')
+    file_list = os.listdir('./tmp/csv_processed')
     dim_re = re.compile(r'dim_\w+.csv')
     dims = [ file for file in file_list if dim_re.match(file) ]
 
@@ -475,12 +479,12 @@ def convert_csv_to_parquet():
         raise ValueError('ERROR: No CSV files to convert to parquet')
     for file in file_list:
         filename = os.path.basename(file).split('.')[0]
-        df = pd.read_csv(f'./tmp/{file}')
+        df = pd.read_csv(f'./tmp/csv_processed/{file}')
 
-        if not os.path.exists("pqt_tmp"):
-            os.makedirs("pqt_tmp")
+        if not os.path.exists("./tmp/pqt_processed"):
+            os.makedirs("./tmp/pqt_processed")
         try:
-            df.to_parquet(f'./pqt_tmp/{filename}.parquet')
+            df.to_parquet(f'./tmp/pqt_processed/{filename}.parquet')
         except pd.errors.EmptyDataError as EDE:
             raise ValueError(f'ERROR: {EDE}')
         except Exception:
@@ -513,13 +517,13 @@ def update_csv_conversion_file():
     for bucket in full_list:
         if "nc-de-databakers-csv-store" in bucket:
                 bucket_str = bucket
-    s3.download_file(bucket_str, 'processed_csv_key/csv_conversion.txt', './tmp/csv_conversion.txt')
+    s3.download_file(bucket_str, 'processed_csv_key/csv_conversion.txt', './tmp/csv_processed/csv_conversion.txt')
     
-    contents = open('./tmp/csv_conversion.txt', 'r').read()
+    contents = open('./tmp/csv_processed/csv_conversion.txt', 'r').read()
     num = int(contents.split(' ')[1])
-    with open('./tmp/csv_conversion.txt', 'w+') as file:
+    with open('./tmp/csv_processed/csv_conversion.txt', 'w+') as file:
         file.write(f'Run {num+1}')
-    s3.upload_file("./tmp/csv_conversion.txt", bucket_str, "processed_csv_key/csv_conversion.txt")
+    s3.upload_file("./tmp/csv_processed/csv_conversion.txt", bucket_str, "processed_csv_key/csv_conversion.txt")
 
 
 def s3_list_prefix_csv_buckets():
@@ -616,9 +620,9 @@ def s3_upload_pqt_files_to_pqt_input_key(parquet_prefix):
     """
     s3=boto3.resource('s3')
     if s3_pqt_input_setup_success(parquet_prefix):
-        pqt_files = os.listdir('./pqt_tmp')
+        pqt_files = os.listdir('./tmp/pqt_processed')
         for file in pqt_files:
-            s3.Bucket(parquet_prefix).upload_file(f'./pqt_tmp/{file}', f'input_parquet_key/{file}')
+            s3.Bucket(parquet_prefix).upload_file(f'./tmp/pqt_processed/{file}', f'input_parquet_key/{file}')
     else:
         raise ValueError("ERROR: Terraform deployment unsuccessful")
 
@@ -641,14 +645,14 @@ def s3_create_pqt_input_completed_txt_file():
     """
 
     
-    if not os.path.exists("./tmp/pqt_input_run_number.txt"):
-        with open("./tmp/pqt_input_run_number.txt", "w") as rn_f:
+    if not os.path.exists("./tmp/pqt_input/pqt_input_run_number.txt"):
+        with open("./tmp/pqt_input/pqt_input_run_number.txt", "w") as rn_f:
             rn_f.write("0")
-    with open("./tmp/pqt_input_run_number.txt", "r+") as rn_f:
+    with open("./tmp/pqt_input/pqt_input_run_number.txt", "r+") as rn_f:
         run_num = int(rn_f.read()) + 1
         rn_f.seek(0)
         rn_f.write(str(run_num))
-    with open(f"./tmp/pqt_input_export_completed.txt", "a+") as f:
+    with open(f"./tmp/pqt_input/pqt_input_export_completed.txt", "a+") as f:
         f.write(f'run {run_num}\n')
 
 
@@ -694,14 +698,14 @@ def s3_create_csv_processed_completed_txt_file():
         Nothing.
     """
     
-    if not os.path.exists("./tmp/csv_processed_run_number.txt"):
-        with open("./tmp/csv_processed_run_number.txt", "w") as rn_f:
+    if not os.path.exists("./tmp/csv_processed/csv_processed_run_number.txt"):
+        with open("./tmp/csv_processed/csv_processed_run_number.txt", "w") as rn_f:
             rn_f.write("0")
-    with open("./tmp/csv_processed_run_number.txt", "r+") as rn_f:
+    with open("./tmp/csv_processed/csv_processed_run_number.txt", "r+") as rn_f:
         run_num = int(rn_f.read()) + 1
         rn_f.seek(0)
         rn_f.write(str(run_num))
-    with open(f"./tmp/csv_processed_export_completed.txt", "a+") as f:
+    with open(f"./tmp/csv_processed/csv_processed_export_completed.txt", "a+") as f:
         f.write(f'run {run_num}\n')
 
 def s3_pqt_input_upload_and_log(parquet_prefix):
@@ -716,7 +720,7 @@ def s3_pqt_input_upload_and_log(parquet_prefix):
     """
 
     s3=boto3.resource('s3')
-    s3.Bucket(parquet_prefix).upload_file('./tmp/pqt_input_export_completed.txt', 'input_parquet_key/pqt_input_export_completed.txt')
+    s3.Bucket(parquet_prefix).upload_file('./tmp/pqt_input/pqt_input_export_completed.txt', 'input_parquet_key/pqt_input_export_completed.txt')
 
 def s3_csv_processed_upload_and_log(csv_prefix):
     """
@@ -730,4 +734,4 @@ def s3_csv_processed_upload_and_log(csv_prefix):
     """
     
     s3=boto3.resource('s3')
-    s3.Bucket(csv_prefix).upload_file('./tmp/csv_processed_export_completed.txt', 'processed_csv_key/csv_processed_export_completed.txt')
+    s3.Bucket(csv_prefix).upload_file('./tmp/csv_processed/csv_processed_export_completed.txt', 'processed_csv_key/csv_processed_export_completed.txt')
