@@ -65,7 +65,7 @@ def create_dirs():
     if not os.path.isdir('./tmp/pqt_input'):
         os.makedirs('./tmp/pqt_input')
     if not os.path.isdir('./tmp/pqt_processed'):
-        os.makedirs('./tmp/pqt_processed/')
+        os.makedirs('./tmp/pqt_processed')
     
 def clean_tmp():
     folders = [ f.path for f in os.scandir('./tmp') if f.is_dir() ]
@@ -82,7 +82,7 @@ def clean_tmp():
         files = os.listdir('./tmp')
         for file in files:
             os.remove(f'./tmp/{file}')
-            
+
     
 def conn_db():
     """Using the required dotenv variables to feed the pg8000 connection function with the correct host name, database name and credentials.
@@ -276,5 +276,3 @@ def update_csv_export_file(bucket):
   except Exception as error:
         raise ValueError(f'ERROR: {error}')
   
-create_dirs()
-clean_tmp()

@@ -69,7 +69,7 @@ def create_dirs():
     if not os.path.isdir('./tmp/pqt_input'):
         os.makedirs('./tmp/pqt_input')
     if not os.path.isdir('./tmp/pqt_processed'):
-        os.makedirs('./tmp/pqt_processed/')
+        os.makedirs('./tmp/pqt_processed')
     
 def clean_tmp():
     folders = [ f.path for f in os.scandir('./tmp') if f.is_dir() ]
