@@ -111,5 +111,5 @@ def update_csv_conversion_file():
   s3.upload_file("./tmp/csv_conversion.txt", bucket_str, "processed_csv_key/csv_conversion.txt")
 
 # list_files_to_convert()
-# convert_csv_to_parquet()
+convert_csv_to_parquet()
 # update_csv_conversion_file()

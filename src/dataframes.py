@@ -11,10 +11,10 @@ To run the test file, please use the below:
     pytest tests/test_dataframes.py
 """
 
-from src.extractor_lambda import put_tables_to_csv
+# from src.extractor_lambda import put_tables_to_csv
 import pandas as pd
 
-put_tables_to_csv()
+# put_tables_to_csv()
 
 def create_dim_staff():
     """Using pandas to read the staff.csv and department.csv files to merge and create
@@ -137,3 +137,7 @@ def create_dim_location():
         raise ValueError(f'ERROR: {DTW}')
     except Exception as error:
         raise ValueError(f'ERROR: {error}')
+
+create_dim_staff()
+create_dim_design()
+create_dim_location()
