@@ -34,6 +34,8 @@ def lambda_handler(event, context):
     try:
         if not os.path.isdir('./tmp'):
             os.makedirs('./tmp')
+        else:
+            clean_tmp()   
         # call DB and save CSV files
         put_tables_to_csv()
 
@@ -43,10 +45,8 @@ def lambda_handler(event, context):
         s3_upload_csv_files(input_bucket)
         update_csv_export_file(input_bucket)
         
-        files = os.listdir('./tmp')
-        for file in files:
-            os.remove(f'./tmp/{file}')
-        os.removedirs('./tmp')
+        clean_tmp()
+        
     except Exception as error:
         logger.error(error)
 
@@ -54,7 +54,19 @@ def lambda_handler(event, context):
 ######
 # DB defs
 ######
+def clean_tmp():
+    folders = subfolders = [ f.path for f in os.scandir('./tmp') if f.is_dir() ]
+    for folder in folders:
+        files = os.listdir(folder)
+        for file in files:
+            os.remove(f'{folder}{file}')
+        os.removedirs(folder)
 
+    files = os.listdir('./tmp')
+    for file in files:
+        os.remove(f'./tmp/{file}')
+    # os.removedirs('./tmp')
+    
 def conn_db():
     """Using the required dotenv variables to feed the pg8000 connection function with the correct host name, database name and credentials.
     We will be able to access the database in a pythonic context and use python and PostgreSQL to achieve the intended functionality.
@@ -246,3 +258,4 @@ def update_csv_export_file(bucket):
     s3.upload_file("./tmp/csv_export.txt", bucket, "input_csv_key/csv_export.txt")
   except Exception as error:
         raise ValueError(f'ERROR: {error}')
+  

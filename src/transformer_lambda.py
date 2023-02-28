@@ -32,8 +32,8 @@ def lambda_handler(event, context):
     try:
         if not os.path.isdir('./tmp'):
             os.makedirs('./tmp')
-        if not os.path.isdir('./pqt_tmp'):
-            os.makedirs('./pqt_tmp')
+        else:
+            clean_tmp()
     
         #buckets
         bucket_list = s3_list_buckets()
@@ -68,9 +68,28 @@ def lambda_handler(event, context):
         s3_create_pqt_input_completed_txt_file()
         s3_pqt_input_upload_and_log(parquet_prefix)
 
-    except:
-        pass
-  
+        clean_tmp()
+
+    except Exception as error:
+        logger.error(error)
+
+######
+# helper functions
+######
+
+def clean_tmp():
+    folders = subfolders = [ f.path for f in os.scandir('./tmp') if f.is_dir() ]
+    for folder in folders:
+        files = os.listdir(folder)
+        for file in files:
+            os.remove(f'{folder}{file}')
+        os.removedirs(folder)
+
+    files = os.listdir('./tmp')
+    for file in files:
+        os.remove(f'./tmp/{file}')
+    # os.removedirs('./tmp')
+ 
 def s3_list_buckets():
     """Using boto3 to list all buckets available in the s3.
 
@@ -118,7 +137,8 @@ def list_files_to_convert(bucket_list):
     bucket = s3_parquet_prefix_buckets(bucket_list)
     list=s3.list_objects(Bucket=bucket)['Contents']
     for key in list:
-        s3.download_file(bucket, key['Key'], f'./tmp/{key["Key"].split("/")[1]}')
+        if ('input_csv_key' in key['Key']):
+            s3.download_file(bucket, key['Key'], f'./tmp/{key["Key"].split("/")[1]}')
 
 def create_dim_counterparty():
     """Using pandas to read the counterparty.csv and address.csv files injested from 

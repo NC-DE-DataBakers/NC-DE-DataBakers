@@ -55,3 +55,4 @@ terraform.rc
 # Temporary folders
 tmp/
 pqt_tmp/
+tmp_copy/

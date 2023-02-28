@@ -31,9 +31,10 @@ def lambda_handler(event, context):
         3- registers the run number.
     """
     try:
-        if not os.path.isdir('./pqt_tmp'):
-            os.makedirs('./pqt_tmp')
-
+        if not os.path.isdir('./tmp'):
+            os.makedirs('./tmp')
+        else:
+            clean_tmp() 
         # download .parquet files to pqt_tmp folder
         parquet_bucket = s3_list_prefix_parquet_buckets()
         dowload_parquet_files_to_process(parquet_bucket)
@@ -48,10 +49,7 @@ def lambda_handler(event, context):
         s3_move_parquet_files_to_parquet_processed_key_and_delete_from_input(parquet_bucket)
         s3_create_parquet_processed_completed_txt_file(parquet_bucket)
 
-        files = os.listdir('./pqt_tmp')
-        for file in files:
-            os.remove(f'./pqt_tmp/{file}')
-        os.removedirs('./pqt_tmp')
+        clean_tmp()
 
     except Exception as error:
         logger.error(error)
@@ -61,6 +59,18 @@ def lambda_handler(event, context):
 # S3 helper functions
 #####
 
+def clean_tmp():
+    folders = subfolders = [ f.path for f in os.scandir('./tmp') if f.is_dir() ]
+    for folder in folders:
+        files = os.listdir(folder)
+        for file in files:
+            os.remove(f'{folder}{file}')
+        os.removedirs(folder)
+
+    files = os.listdir('./tmp')
+    for file in files:
+        os.remove(f'./tmp/{file}')
+    # os.removedirs('./tmp')
 
 def s3_list_buckets():
     """Using the s3 client, we will return a list containing the names of all the buckets.

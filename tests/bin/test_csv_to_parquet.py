@@ -1,6 +1,6 @@
-from src.csv_to_parquet import convert_csv_to_parquet, list_files_to_convert, update_csv_conversion_file
+from bin.csv_to_parquet import convert_csv_to_parquet, list_files_to_convert, update_csv_conversion_file
 from unittest.mock import patch
-import src.csv_to_parquet
+import bin.csv_to_parquet
 from moto import mock_s3
 import pandas as pd
 import pytest
