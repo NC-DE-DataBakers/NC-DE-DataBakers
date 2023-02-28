@@ -1,4 +1,4 @@
-from src.dim_counterparty import make_dimension
+from bin.dim_counterparty import make_dimension
 import pandas as pd
 import pytest
 import os

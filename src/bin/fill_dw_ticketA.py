@@ -8,6 +8,11 @@ import pandas as pd
 
 sm = boto3.client('secretsmanager')
 
+host = "nc-data-eng-project-dw-prod.chpsczt8h1nu.eu-west-2.rds.amazonaws.com"
+database = "postgres"
+user = "project_team_2"
+password = "PYmh2xrDFRBpMBS"
+
 def conn_db():
     """Using the required dotenv variables to feed the pg8000 connection function with the correct host name, database name and credentials.
     We will be able to access the database in a pythonic context and use python and PostgreSQL to achieve the intended functionality.
@@ -29,11 +34,6 @@ def conn_db():
     # user = parsed_secret["username"]
     # password = parsed_secret["password"]
     
-    host = "nc-data-eng-project-dw-prod.chpsczt8h1nu.eu-west-2.rds.amazonaws.com"
-    database = "postgres"
-    user = "project_team_2"
-    password = "PYmh2xrDFRBpMBS"
-
     try:
         conn = Connection(user=user, password=password, host=host, database=database)
         return conn
@@ -107,10 +107,6 @@ def fill_tables():
     
     empty_tables()
 
-    host = "nc-data-eng-project-dw-prod.chpsczt8h1nu.eu-west-2.rds.amazonaws.com"
-    database = "postgres"
-    user = "project_team_2"
-    password = "PYmh2xrDFRBpMBS"
 
     engine = sa.create_engine(f'postgresql://{user}:{password}@{host}:5432/{database}')
 

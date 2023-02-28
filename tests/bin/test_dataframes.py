@@ -1,4 +1,4 @@
-from src.dataframes import create_dim_staff, create_dim_design, create_dim_location
+from bin.dataframes import create_dim_staff, create_dim_design, create_dim_location
 import csv
 import pytest
 import os
