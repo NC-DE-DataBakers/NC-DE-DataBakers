@@ -1,6 +1,6 @@
 """Defines lambda function to handle creation of S3 text object."""
 
-from botocore.exceptions import ClientError
+#from botocore.exceptions import ClientError
 from pg8000 import Connection
 import logging
 import pg8000
@@ -66,19 +66,20 @@ def conn_db():
     """
     sm = boto3.client('secretsmanager')
     try:
-        secret_value = sm.get_secret_value(SecretId="temp_totesys_creds_123456")['SecretString']
+        secret_value = sm.get_secret_value(SecretId="totesys_creds")['SecretString']
         #secret_value = sm.get_secret_value(SecretId="totesys_creds")['SecretString']
     except sm.exceptions.ResourceNotFoundException as RNFE:
-        return 'ERROR: Secrets Manager can''t find the specified secret.'
+        return 'ERROR: Secrets Manager can''t find the specified Totesys secret.'
 
     parsed_secret = json.loads(secret_value)
     host = parsed_secret["host"]
     database = parsed_secret["database"]
     user = parsed_secret["username"]
     password = parsed_secret["password"]
-    
+    port = parsed_secret["port"]
+
     try:
-        conn = Connection(user=user, password=password, host=host, database=database)
+        conn = Connection(user=user, password=password, host=host, database=database, port=port)
         return conn
     except pg8000.exceptions.InterfaceError as IFE:
         raise ValueError(f'ERROR: {IFE}')

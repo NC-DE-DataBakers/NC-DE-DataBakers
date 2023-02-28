@@ -1,4 +1,4 @@
-from dim_currency import make_dimension
+from bin.dim_currency import make_dimension
 import pandas as pd
 import pytest
 import os

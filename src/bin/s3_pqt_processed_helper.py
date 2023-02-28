@@ -77,6 +77,23 @@ def s3_pqt_processed_setup_success():
     else:
         raise ValueError("ERROR: Terraform deployment unsuccessful")
 
+def dowload_parquet_files_to_process():
+  """ 
+    downloads all the parquet files to a temporary pqt_tmp local directory
+    Args:
+        Not required.
+
+    Returns:
+        nothing
+        
+  """
+  s3=boto3.client('s3')
+  bucket = s3_list_prefix_parquet_buckets()
+  list=s3.list_objects(Bucket=bucket)['Contents']
+  for key in list:
+    if('input_parquet_key' in key['Key']):
+        s3.download_file(bucket, key['Key'], f'./pqt_tmp/{key["Key"].split("/")[1]}')
+
 def s3_move_parquet_files_to_parquet_processed_key_and_delete_from_input():
     """Using the s3 resource and s3 client we will attempt to move files from the parquet bucket input key to the parquet bucket processed key. We will check the name of the parquet bucket using the s3 list and we will also check that the set-up for the processed key was successful. If not, it will throw an error.
     
@@ -102,7 +119,7 @@ def s3_move_parquet_files_to_parquet_processed_key_and_delete_from_input():
     else:
         raise ValueError("ERROR: Terraform deployment unsuccessful")
 
-def s3_create_parquet_processed_completed_txt_file():
+def s3_create_parquet_processed_completed_txt_file(bucket):
     """Using the os module we will check if the local directory contains a run number file. This will happen after the previos upload function is invoked. If this file does not exist, we will pass it in "0", then we will increment it each time this current function is run by "1". At the same time a separate file will read from the run number file and log each time this function is run appending the run number on another line.
     
     Args:
@@ -122,7 +139,7 @@ def s3_create_parquet_processed_completed_txt_file():
     with open(f"parquet_processed_export_completed.txt", "a+") as f:
         f.write(f'run {run_num}\n')
 
-def s3_parquet_processed_upload_and_log():
+def s3_parquet_processed_upload_and_log(bucket):
     """Using the s3 resource we will upload the parquet processed completed text file to the processed parquet bucket in the s3. This will happen once the parquet files are moved from the parquet input key to the processed parquet key and after the run count is updated.
     
     Args:
@@ -133,4 +150,4 @@ def s3_parquet_processed_upload_and_log():
     """
     s3_create_parquet_processed_completed_txt_file()
     s3=boto3.resource('s3')
-    s3.Bucket(s3_list_prefix_parquet_buckets()).upload_file('./parquet_processed_export_completed.txt', 'processed_parquet_key/parquet_processed_export_completed.txt')
+    s3.upload_file('./parquet_processed_export_completed.txt', bucket, 'processed_parquet_key/parquet_processed_export_completed.txt')
