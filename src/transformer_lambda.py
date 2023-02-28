@@ -30,14 +30,7 @@ def lambda_handler(event, context):
     """
 
     try:
-        if not os.path.isdir('./tmp'):
-            os.makedirs('./tmp')
-            os.makedirs('./tmp/csv_input')
-            os.makedirs('./tmp/csv_processed')
-            os.makedirs('./tmp/pqt_input')
-            os.makedirs('./tmp/pqt_processed')
-        else:
-            clean_tmp()
+        create_dirs()
     
         #buckets
         bucket_list = s3_list_buckets()
@@ -45,8 +38,7 @@ def lambda_handler(event, context):
         #move csv into processed
         csv_prefix = s3_list_prefix_csv_buckets(bucket_list)
         s3_move_csv_files_to_csv_processed_key_and_delete_from_input(csv_prefix)
-        s3_create_csv_processed_completed_txt_file()
-        s3_csv_processed_upload_and_log(csv_prefix)
+        
         
         #download csv files from s3
         list_files_to_convert(bucket_list)
@@ -63,14 +55,14 @@ def lambda_handler(event, context):
         #convert to parquet
         convert_csv_to_parquet()
         
-        #update conversion csv
-        update_csv_conversion_file()
-        
         #upload to the parquet input bucket
         parquet_prefix = s3_list_prefix_parquet_buckets(bucket_list)
         s3_upload_pqt_files_to_pqt_input_key(parquet_prefix)
-        s3_create_pqt_input_completed_txt_file()
-        s3_pqt_input_upload_and_log(parquet_prefix)
+
+        #update the run number
+        s3_create_csv_processed_completed_txt_file(csv_prefix)
+        s3_create_pqt_input_completed_txt_file(parquet_prefix)
+        
 
         clean_tmp()
 
@@ -81,18 +73,36 @@ def lambda_handler(event, context):
 # helper functions
 ######
 
+
+def create_dirs():
+    clean_tmp()
+    
+    if not os.path.isdir('./tmp'):
+        os.makedirs('./tmp')
+    if not os.path.isdir('./tmp/csv_input'):
+        os.makedirs('./tmp/csv_input')
+    if not os.path.isdir('./tmp/csv_processed'):
+        os.makedirs('./tmp/csv_processed')
+    if not os.path.isdir('./tmp/pqt_input'):
+        os.makedirs('./tmp/pqt_input')
+    if not os.path.isdir('./tmp/pqt_processed'):
+        os.makedirs('./tmp/pqt_processed/')
+    
 def clean_tmp():
-    folders = subfolders = [ f.path for f in os.scandir('./tmp') if f.is_dir() ]
+    folders = [ f.path for f in os.scandir('./tmp') if f.is_dir() ]
+ 
     for folder in folders:
         files = os.listdir(folder)
         for file in files:
             os.remove(f'{folder}{file}')
-        os.removedirs(folder)
 
-    files = os.listdir('./tmp')
-    for file in files:
-        os.remove(f'./tmp/{file}')
-    # os.removedirs('./tmp')
+        os.rmdir(folder) # os.removedirs removes parent directory if it is empty in the last run!
+ 
+    if os.path.isdir('./tmp'):
+        files = os.listdir('./tmp')
+        for file in files:
+            os.remove(f'./tmp/{file}')
+
  
 def s3_list_buckets():
     """Using boto3 to list all buckets available in the s3.
@@ -490,40 +500,40 @@ def convert_csv_to_parquet():
         except Exception:
             raise ValueError(f'ERROR: {Exception}')
 
-def update_csv_conversion_file():
-    """ 
-        function downloads the Run number in the csv_conversion.txt is ammended to increment the count,#
-        then uploads to processed_csv_key on the bucket.
-        Args:
-            Not required.
+# def update_csv_conversion_file():
+#     """ 
+#         function downloads the Run number in the csv_conversion.txt is ammended to increment the count,#
+#         then uploads to processed_csv_key on the bucket.
+#         Args:
+#             Not required.
 
-        Returns:
-            nothing
-    """
-    """
-    Downloads the Run number in the csv_conversion.txt and is amended to increment the count,
-    then uploads to processed_csv_key in the s3 bucket.
+#         Returns:
+#             nothing
+#     """
+#     """
+#     Downloads the Run number in the csv_conversion.txt and is amended to increment the count,
+#     then uploads to processed_csv_key in the s3 bucket.
     
-    Args:
-        Not required.
-    Returns:
-        Uploads to processed_csv_key in the s3 bucket.
-    Raises:
-        No error handling.
-    """
-    s3=boto3.client('s3')
-    full_list = s3_list_buckets()
-    bucket_str = ''
-    for bucket in full_list:
-        if "nc-de-databakers-csv-store" in bucket:
-                bucket_str = bucket
-    s3.download_file(bucket_str, 'processed_csv_key/csv_conversion.txt', './tmp/csv_processed/csv_conversion.txt')
+#     Args:
+#         Not required.
+#     Returns:
+#         Uploads to processed_csv_key in the s3 bucket.
+#     Raises:
+#         No error handling.
+#     """
+#     s3=boto3.client('s3')
+#     full_list = s3_list_buckets()
+#     bucket_str = ''
+#     for bucket in full_list:
+#         if "nc-de-databakers-csv-store" in bucket:
+#                 bucket_str = bucket
+#     s3.download_file(bucket_str, 'processed_csv_key/csv_conversion.txt', './tmp/csv_processed/csv_conversion.txt')
     
-    contents = open('./tmp/csv_processed/csv_conversion.txt', 'r').read()
-    num = int(contents.split(' ')[1])
-    with open('./tmp/csv_processed/csv_conversion.txt', 'w+') as file:
-        file.write(f'Run {num+1}')
-    s3.upload_file("./tmp/csv_processed/csv_conversion.txt", bucket_str, "processed_csv_key/csv_conversion.txt")
+#     contents = open('./tmp/csv_processed/csv_conversion.txt', 'r').read()
+#     num = int(contents.split(' ')[1])
+#     with open('./tmp/csv_processed/csv_conversion.txt', 'w+') as file:
+#         file.write(f'Run {num+1}')
+#     s3.upload_file("./tmp/csv_processed/csv_conversion.txt", bucket_str, "processed_csv_key/csv_conversion.txt")
 
 
 def s3_list_prefix_csv_buckets():
@@ -626,7 +636,7 @@ def s3_upload_pqt_files_to_pqt_input_key(parquet_prefix):
     else:
         raise ValueError("ERROR: Terraform deployment unsuccessful")
 
-def s3_create_pqt_input_completed_txt_file():
+def s3_create_pqt_input_completed_txt_file(bucket):
     """
     Using the os module we will check if the local directory contains
     a run number file, If this file does not exist, create and 
@@ -644,16 +654,32 @@ def s3_create_pqt_input_completed_txt_file():
         Nothing
     """
 
+    s3=boto3.client('s3')
+
+    try:
+        s3.download_file(bucket, 'input_parquet_key/parquet_export.txt', './tmp/pqt_input/parquet_export.txt')
+    except Exception as error:
+            raise ValueError(f'ERROR: {error}')
+
+    contents = open('./tmp/pqt_input/parquet_export.txt', 'r').read()
+    num = int(contents.split(' ')[1])
+    with open('./tmp/pqt_input/parquet_export.txt', 'w+') as file:
+        file.write(f'Run {num+1}')
     
-    if not os.path.exists("./tmp/pqt_input/pqt_input_run_number.txt"):
-        with open("./tmp/pqt_input/pqt_input_run_number.txt", "w") as rn_f:
-            rn_f.write("0")
-    with open("./tmp/pqt_input/pqt_input_run_number.txt", "r+") as rn_f:
-        run_num = int(rn_f.read()) + 1
-        rn_f.seek(0)
-        rn_f.write(str(run_num))
-    with open(f"./tmp/pqt_input/pqt_input_export_completed.txt", "a+") as f:
-        f.write(f'run {run_num}\n')
+    try:
+        s3.upload_file("./tmp/pqt_input/parquet_export.txt", bucket, "input_parquet_key/parquet_export.txt")
+    except Exception as error:
+            raise ValueError(f'ERROR: {error}')
+    
+    # if not os.path.exists("./tmp/pqt_input/pqt_input_run_number.txt"):
+    #     with open("./tmp/pqt_input/pqt_input_run_number.txt", "w") as rn_f:
+    #         rn_f.write("0")
+    # with open("./tmp/pqt_input/pqt_input_run_number.txt", "r+") as rn_f:
+    #     run_num = int(rn_f.read()) + 1
+    #     rn_f.seek(0)
+    #     rn_f.write(str(run_num))
+    # with open(f"./tmp/pqt_input/pqt_input_export_completed.txt", "a+") as f:
+    #     f.write(f'run {run_num}\n')
 
 
 def s3_move_csv_files_to_csv_processed_key_and_delete_from_input(csv_prefix):
@@ -684,7 +710,7 @@ def s3_move_csv_files_to_csv_processed_key_and_delete_from_input(csv_prefix):
     else:
         raise ValueError("ERROR: Terraform deployment unsuccessful")
 
-def s3_create_csv_processed_completed_txt_file():
+def s3_create_csv_processed_completed_txt_file(bucket):
     """
     function designed to increment the run number and export history
     saved in the log files.
@@ -697,16 +723,34 @@ def s3_create_csv_processed_completed_txt_file():
     Raises:
         Nothing.
     """
+    s3=boto3.client('s3')
+
+    try:
+        s3.download_file(bucket, 'processed_csv_key/csv_processed.txt', './tmp/csv_processed/csv_processed.txt')
+    except Exception as error:
+            raise ValueError(f'ERROR: {error}')
+
+    contents = open('./tmp/csv_processed/csv_processed.txt', 'r').read()
+    num = int(contents.split(' ')[1])
+    with open('./tmp/csv_processed/csv_processed.txt', 'w+') as file:
+        file.write(f'Run {num+1}')
     
-    if not os.path.exists("./tmp/csv_processed/csv_processed_run_number.txt"):
-        with open("./tmp/csv_processed/csv_processed_run_number.txt", "w") as rn_f:
-            rn_f.write("0")
-    with open("./tmp/csv_processed/csv_processed_run_number.txt", "r+") as rn_f:
-        run_num = int(rn_f.read()) + 1
-        rn_f.seek(0)
-        rn_f.write(str(run_num))
-    with open(f"./tmp/csv_processed/csv_processed_export_completed.txt", "a+") as f:
-        f.write(f'run {run_num}\n')
+    try:
+        s3.upload_file("./tmp/csv_processed/csv_processed.txt", bucket, "processed_csv_key/csv_processed.txt")
+    except Exception as error:
+            raise ValueError(f'ERROR: {error}')
+    
+
+    ######
+    # if not os.path.exists("./tmp/csv_processed/csv_processed_run_number.txt"):
+    #     with open("./tmp/csv_processed/csv_processed_run_number.txt", "w") as rn_f:
+    #         rn_f.write("0")
+    # with open("./tmp/csv_processed/csv_processed_run_number.txt", "r+") as rn_f:
+    #     run_num = int(rn_f.read()) + 1
+    #     rn_f.seek(0)
+    #     rn_f.write(str(run_num))
+    # with open(f"./tmp/csv_processed/csv_processed_export_completed.txt", "a+") as f:
+    #     f.write(f'run {run_num}\n')
 
 def s3_pqt_input_upload_and_log(parquet_prefix):
     """
