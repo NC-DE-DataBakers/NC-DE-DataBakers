@@ -1,6 +1,6 @@
 """Defines lambda function to populate Data Warehouse."""
 
-#from botocore.exceptions import ClientError
+# from botocore.exceptions import ClientError
 from pg8000 import Connection
 import logging
 import pg8000
@@ -17,17 +17,14 @@ logger.setLevel(logging.INFO)
 
 sm = boto3.client('secretsmanager')
 
-host = ""
-database = ""
-user = ""
-password = ""
 
 def lambda_handler(event, context):
-
-    """This application should allow the user to fill the Data Warehouse with appropriate logging. 
+    """This application should allow the user to fill
+       the Data Warehouse with appropriate logging.
         This lambda:
         1- fill the DW
-        2- moves parquet files from input to processed keys in the parquet bucket
+        2- moves parquet files from input to processed keys
+           in the parquet bucket
         3- registers the run number.
     """
     try:
@@ -42,9 +39,10 @@ def lambda_handler(event, context):
 
         # Fill the data warehouse
         fill_tables()
-        
+
         # move .parquet files from the input key to the processed key
-        s3_move_parquet_files_to_parquet_processed_key_and_delete_from_input(parquet_bucket)
+        s3_move_parquet_files_to_parquet_processed_key_and_delete_from_input(
+            parquet_bucket)
         s3_create_parquet_processed_completed_txt_file(parquet_bucket)
 
         clean_tmp()
@@ -70,17 +68,20 @@ def create_dirs():
         os.makedirs('./tmp/pqt_input')
     if not os.path.isdir('./tmp/pqt_processed'):
         os.makedirs('./tmp/pqt_processed')
-    
+
+
 def clean_tmp():
-    folders = [ f.path for f in os.scandir('./tmp') if f.is_dir() ]
+    folders = [f.path for f in os.scandir('./tmp') if f.is_dir()]
 
     for folder in folders:
         files = os.listdir(folder)
         for file in files:
             os.remove(f'{folder}{file}')
 
-        os.rmdir(folder) # os.removedirs removes parent directory if it is empty in the last run!
- 
+        # os.removedirs removes parent directory if it is empty in the last
+        # run!
+        os.rmdir(folder)
+
     if os.path.isdir('./tmp'):
 
         files = os.listdir('./tmp')
@@ -89,21 +90,27 @@ def clean_tmp():
 
 
 def s3_list_buckets():
-    """Using the s3 client, we will return a list containing the names of all the buckets.
-    
+    """Using the s3 client, we will return a list containing the names
+    of all the buckets.
+
     Args:
         Not required.
 
     Returns:
         List of all s3 buckets.
     """
-    s3=boto3.client('s3')
-    response=s3.list_buckets()['Buckets']
+    s3 = boto3.client('s3')
+    response = s3.list_buckets()['Buckets']
     return [bucket['Name'] for bucket in response]
 
+
 def s3_list_prefix_parquet_buckets():
-    """Using the s3 client, we will return the name of the s3 bucket containing the "nc-de-databakers-parquet-store-" prefix buckets through a for loop of the list returned in s3_list_buckets, we will also add some error handling that checks if the bucket is empty, or if the prefix is not found
-    
+    """Using the s3 client, we will return the name of the s3 bucke
+    containing the "nc-de-databakers-parquet-store-" prefix buckets
+    through a for loop of the list returned in s3_list_buckets.
+    We will also add some error handling that checks if the bucket is empty,
+    or if the prefix is not found
+
     Args:
         Not required.
 
@@ -118,72 +125,94 @@ def s3_list_prefix_parquet_buckets():
             return bucket
     raise ValueError("ERROR: Parquet prefix not found in any bucket")
 
+
 def s3_pqt_input_setup_success(bucket):
-    """Using the s3 client and a for loop, we will check if the parquet bucket contains the setup success text file in the input key, to ensure that terraform has been setup correctly, if it does not return with the desired outcome, an error will be raised regarding the terraform deployment
-    
+    """Using the s3 client and a for loop,
+    we will check if the parquet bucket contains the
+    setup success text file in the input key,
+    to ensure that terraform has been setup correctly.
+    If it does not return with the desired outcome,
+    an error will be raised regarding the terraform deployment
+
     Args:
         Not required.
 
     Returns:
         True if file is found, ValueError otherwise.
     """
-    s3=boto3.client('s3')
+    s3 = boto3.client('s3')
     objects = s3.list_objects(Bucket=bucket)['Contents']
     for object in objects:
-        if object['Key'] == 'input_parquet_key/setup_success_parquet_input.txt':
+        if object[
+                'Key'] == 'input_parquet_key/setup_success_parquet_input.txt':
             return True
     else:
         raise ValueError("ERROR: Terraform deployment unsuccessful")
+
 
 def s3_pqt_processed_setup_success(bucket):
-    """Using the s3 client and a for loop, we will check if the parquet bucket contains the setup success text file in the processed key, to ensure that terraform has been setup correctly, if it does not return with the desired outcome, an error will be raised regarding the terraform deployment
-    
+    """Using the s3 client and a for loop,
+    we will check if the parquet bucket contains the
+    setup success text file in the processed key,
+    to ensure that terraform has been setup correctly.
+    If it does not return with the desired outcome,
+    an error will be raised regarding the terraform deployment
+
     Args:
         Not required.
 
     Returns:
         True if file is found, ValueError otherwise.
     """
-    s3=boto3.client('s3')
+    s3 = boto3.client('s3')
 
     objects = s3.list_objects(Bucket=bucket)['Contents']
     for object in objects:
-        if object['Key'] == 'input_parquet_key/setup_success_parquet_input.txt':
+        if object[
+                'Key'] == 'input_parquet_key/setup_success_parquet_input.txt':
             return True
     else:
         raise ValueError("ERROR: Terraform deployment unsuccessful")
 
+
 def dowload_parquet_files_to_process(bucket):
-    """ 
+    """
     downloads all the parquet files to a temporary pqt_tmp local directory
     Args:
         Not required.
 
     Returns:
         nothing
-        
+
     """
-    s3=boto3.client('s3')
+    s3 = boto3.client('s3')
 
     if s3_pqt_input_setup_success(bucket):
-        list=s3.list_objects(Bucket=bucket)['Contents']
+        list = s3.list_objects(Bucket=bucket)['Contents']
         for key in list:
-            if('input_parquet_key' in key['Key']):
-                s3.download_file(bucket, key['Key'], f'./tmp/pqt_input/{key["Key"].split("/")[1]}')
+            if ('input_parquet_key' in key['Key']):
+                s3.download_file(bucket, key['Key'],
+                                 f'./tmp/pqt_input/{key["Key"].split("/")[1]}')
     else:
         raise ValueError("ERROR: Terraform deployment unsuccessful")
-    
-def s3_move_parquet_files_to_parquet_processed_key_and_delete_from_input(bucket_name):
-    """Using the s3 resource and s3 client we will attempt to move files from the parquet bucket input key to the parquet bucket processed key. We will check the name of the parquet bucket using the s3 list and we will also check that the set-up for the processed key was successful. If not, it will throw an error.
-    
+
+
+def s3_move_parquet_files_to_parquet_processed_key_and_delete_from_input(
+        bucket_name):
+    """Using the s3 resource and s3 client we will attempt to move files
+    from the parquet bucket input key to the parquet bucket processed key.
+    We will check the name of the parquet bucket using the s3 list and we will
+    also check that the set-up for the processed key was successful.
+    If not, it will throw an error.
+
     Args:
         Not required.
 
     Returns:
         Nothing, unless there is an error.
     """
-    s3res=boto3.resource('s3')
-    s3cli=boto3.client('s3')
+    s3res = boto3.resource('s3')
+    s3cli = boto3.client('s3')
 
     if s3_pqt_processed_setup_success(bucket_name):
         source_key = 'input_parquet_key/'
@@ -193,57 +222,72 @@ def s3_move_parquet_files_to_parquet_processed_key_and_delete_from_input(bucket_
         for obj in objects:
             if obj.key.endswith('.parquet'):
                 obj_key = obj.key.replace(source_key, '')
-                s3cli.copy(CopySource={'Bucket': bucket_name, 'Key':obj.key}, Bucket=bucket_name, Key=destination_key+obj_key)
+                s3cli.copy(CopySource={'Bucket': bucket_name, 'Key': obj.key},
+                           Bucket=bucket_name,
+                           Key=destination_key+obj_key)
                 obj.delete()
     else:
         raise ValueError("ERROR: Terraform deployment unsuccessful")
 
+
 def s3_create_parquet_processed_completed_txt_file(bucket):
-    """Using the os module we will check if the local directory contains a run number file. This will happen after the previos upload function is invoked. If this file does not exist, we will pass it in "0", then we will increment it each time this current function is run by "1". At the same time a separate file will read from the run number file and log each time this function is run appending the run number on another line.
-    
+    """Using the os module we will check
+    if the local directory contains a run number file.
+    This will happen after the previos upload function is invoked.
+    If this file does not exist, we will pass it in "0",
+    then we will increment it each time this current function is run by "1".
+    At the same time a separate file will read from the run number file and log
+    each time this function is run appending the run number on another line.
+
     Args:
         Not required.
 
     Returns:
         Nothing.
     """
-    s3=boto3.client('s3')
+    s3 = boto3.client('s3')
 
     try:
-        s3.download_file(bucket, 'processed_parquet_key/parquet_processed.txt', './tmp/pqt_input/parquet_processed.txt')
+        s3.download_file(bucket, 'processed_parquet_key/parquet_processed.txt',
+                                 './tmp/pqt_input/parquet_processed.txt')
     except Exception as error:
-            raise ValueError(f'ERROR: {error}')
+        raise ValueError(f'ERROR: {error}')
 
     contents = open('./tmp/pqt_input/parquet_processed.txt', 'r').read()
     num = int(contents.split(' ')[1])
     with open('./tmp/pqt_input/parquet_processed.txt', 'w+') as file:
         file.write(f'Run {num+1}')
-    
-    try:
-        s3.upload_file("./tmp/pqt_input/parquet_processed.txt", bucket, "processed_parquet_key/parquet_processed.txt")
-    except Exception as error:
-            raise ValueError(f'ERROR: {error}')
 
+    try:
+        s3.upload_file("./tmp/pqt_input/parquet_processed.txt", bucket,
+                       "processed_parquet_key/parquet_processed.txt")
+    except Exception as error:
+        raise ValueError(f'ERROR: {error}')
 
 
 ######
 # DW helper functions
 ######
 
+
 def conn_db():
-    """Using the required dotenv variables to feed the pg8000 connection function with the correct host name, database name and credentials.
-    We will be able to access the database in a pythonic context and use python and PostgreSQL to achieve the intended functionality.
-    
+    """Using the required dotenv variables to feed the pg8000 connection
+    function with the correct host name, database name and credentials.
+    We will be able to access the database in a pythonic context and use python
+    and PostgreSQL to achieve the intended functionality.
+
     Args:
         Not required.
 
     Returns:
-        conn (pg8000.legacy.Connection): A database connection to be used by name_fetcher function. 
+        conn (pg8000.legacy.Connection):
+        A database connection to be used by name_fetcher function.
     """
     try:
         secret_value = sm.get_secret_value(SecretId="dw_creds")['SecretString']
-    except sm.exceptions.ResourceNotFoundException as RNFE:
-        return 'ERROR: Secrets Manager can''t find the specified DW secret.'
+    except sm.exceptions.ResourceNotFoundException:
+        raise ValueError(
+            'ERROR: Secrets Manager can''t find the specified DW secret.')
 
     parsed_secret = json.loads(secret_value)
     host = parsed_secret["host"]
@@ -253,79 +297,103 @@ def conn_db():
     port = parsed_secret["port"]
 
     try:
-        conn = Connection(user=user, password=password, host=host, database=database, port=port)
+        conn = Connection(user=user, password=password, host=host,
+                          database=database, port=port)
         return conn
     except pg8000.exceptions.InterfaceError as IFE:
-        return f'ERROR: {IFE}'
+        raise ValueError(f'ERROR: {IFE}')
     except pg8000.exceptions.DatabaseError as DBE:
-        if PE.args[0]['C'] == '28P01':
-            return 'ERROR: user or password incorrect'
-        return DBE
+        if DBE.args[0]['C'] == '28P01':
+            raise ValueError('ERROR: user or password incorrect')
+        else:
+            raise ValueError(f"ERROR: {DBE}")
     except pg8000.dbapi.ProgrammingError as PE:
         if PE.args[0]['C'] == '28P01':
-            return 'ERROR: user or password incorrect'
+            raise ValueError('ERROR: user or password incorrect')
         elif PE.args[0]['C'] == '3D000':
-            return f"ERROR: {PE.args[0]['M']}"
-        return PE
+            raise ValueError(f"ERROR: {PE.args[0]['M']}")
+        else:
+            raise ValueError(f"ERROR: {PE}")
     except Exception as error:
-        return f"ERROR: {error}"
+        raise ValueError(f"ERROR: {error}")
+
 
 def empty_tables():
     """This PSQL query empties all tables from data.
-    
+
     Args:
         Not required.
 
     Returns:
-        Not required. 
+        Not required.
     """
-    
-    #delete_query = "DELETE FROM dim_date WHERE year > 1800 RETURNING *;"
-    delete_query = 'TRUNCATE dim_date, dim_staff, dim_location, dim_currency, dim_design, dim_counterparty, fact_sales_order;'
+
+    # delete_query = "DELETE FROM dim_date WHERE year > 1800 RETURNING *;"
+    delete_query = 'TRUNCATE dim_date, dim_staff, dim_location,'
+    + 'dim_currency, dim_design, dim_counterparty, fact_sales_order;'
 
     try:
         conn = conn_db()
         cur = conn.cursor()
-        result = cur.execute(delete_query)
+        cur.execute(delete_query)
         return True
     except pg8000.dbapi.ProgrammingError as PE:
         if PE.args[0]['C'] == '42703':
-            return f"ERROR: {PE.args[0]['M']}"
+            raise ValueError(f"ERROR: {PE.args[0]['M']}")
         elif PE.args[0]['C'] == '42P01':
-            return f"ERROR: {PE.args[0]['M']}"
+            raise ValueError(f"ERROR: {PE.args[0]['M']}")
     except Exception as error:
         return f'ERROR: {error}'
 
+
 def fill_tables():
     """This PSQL query fills all tables in the data warehouse.
-    
+
     Args:
         Not required.
 
     Returns:
-        Not required. 
+        Not required.
     """
 
-    engine = sa.create_engine(f'postgresql://{user}:{password}@{host}:5432/{database}')
+    try:
+        secret_value = sm.get_secret_value(SecretId="dw_creds")['SecretString']
+    except sm.exceptions.ResourceNotFoundException:
+        raise ValueError(
+            'ERROR: Secrets Manager can''t find the specified DW secret.')
 
+    parsed_secret = json.loads(secret_value)
+    host = parsed_secret["host"]
+    database = parsed_secret["database"]
+    user = parsed_secret["username"]
+    password = parsed_secret["password"]
+
+    engine = sa.create_engine(
+        f'postgresql://{user}:{password}@{host}:5432/{database}')
 
     dim_date = pd.read_parquet('./tmp/pqt_input/dim_date.parquet')
     dim_date.to_sql('dim_date', engine, if_exists='append', index=False)
 
     dim_design = pd.read_parquet('./tmp/pqt_input/dim_design.parquet')
     dim_design.to_sql('dim_design', engine, if_exists='append', index=False)
-    
-    dim_counterparty = pd.read_parquet('./tmp/pqt_input/dim_counterparty.parquet')
-    dim_counterparty.to_sql('dim_counterparty', engine, if_exists='append', index=False)
-    
+
+    dim_counterparty = pd.read_parquet(
+        './tmp/pqt_input/dim_counterparty.parquet')
+    dim_counterparty.to_sql('dim_counterparty', engine,
+                            if_exists='append', index=False)
+
     dim_currency = pd.read_parquet('./tmp/pqt_input/dim_currency.parquet')
-    dim_currency.to_sql('dim_currency', engine, if_exists='append', index=False)
+    dim_currency.to_sql('dim_currency', engine,
+                        if_exists='append', index=False)
 
     dim_location = pd.read_parquet('./tmp/pqt_input/dim_location.parquet')
-    dim_location.to_sql('dim_location', engine, if_exists='append', index=False)
+    dim_location.to_sql('dim_location', engine,
+                        if_exists='append', index=False)
 
     dim_staff = pd.read_parquet('./tmp/pqt_input/dim_staff.parquet')
     dim_staff.to_sql('dim_staff', engine, if_exists='append', index=False)
 
-    fact_sales_order = pd.read_parquet('./tmp/pqt_input/fact_sales_order.parquet')
-    fact_sales_order.to_sql('fact_sales_order', engine, if_exists='append', index=False)
+    fact_sales_order = pd.read_parquet(
+        './tmp/pqt_input/fact_sales_order.parquet')
+    fact_sales_order.to_sql('fact_sales_order', engine,
+                            if_exists='append', index=False)
