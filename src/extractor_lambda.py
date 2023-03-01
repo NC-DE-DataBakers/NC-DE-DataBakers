@@ -1,6 +1,5 @@
 """Defines lambda function to handle creation of S3 text object."""
 
-# from botocore.exceptions import ClientError
 from pg8000 import Connection
 from pg8000.native import identifier
 import logging
@@ -43,7 +42,7 @@ def lambda_handler(event, context):
         s3_upload_csv_files(input_bucket)
         update_csv_export_file(input_bucket)
 
-        clean_tmp()
+        # clean_tmp()
 
     except Exception as error:
         logger.error(error)
@@ -74,7 +73,7 @@ def clean_tmp():
     for folder in folders:
         files = os.listdir(folder)
         for file in files:
-            os.remove(f'{folder}{file}')
+            os.remove(f'{folder}/{file}')
 
         # os.removedirs removes parent directory if it is empty in the last
         # run!
@@ -169,22 +168,20 @@ def db_tables_fetcher():
 
 
 def put_tables_to_csv():
-    """Using the os library, a new directory 'tmp'
-    is created providing it doesn't already exist.
-
+    """Using the os library, a new directory 'tmp' is
+    created providing it doesn't already exist.
     Using a for loop, we will access the table_names variable
     which contains tuple of each table.
-    For each table, we use PSQL to select all the data
-    and store the value of this query to a variable named table_data.
-    Using with open, we will use the CSV library
-    to write this table_data to a new file in CSV format.
+    For each table, we use PSQL to select all the data and store
+    the value of this query to a variable named table_data.
+    Using with open, we will use the CSV library to write
+    this table_data to a new file in CSV format.
 
     Args:
         Not required.
-
     Returns:
-        Writes a CSV file per table from the
-        database and stores in a tmp directory.
+        Writes a CSV file per table from the database and
+        stores in a tmp directory.
     """
 
     if not os.path.exists("tmp"):
@@ -192,28 +189,30 @@ def put_tables_to_csv():
     table_names = db_tables_fetcher()
     for table_name in table_names:
         try:
-            query = "SELECT * FROM %s"
+            query = f"SELECT * FROM {identifier(table_name[0])}"
             columns = """SELECT attname, format_type(atttypid, atttypmod)\
-                 AS type
+            AS type
                         FROM   pg_attribute
                         WHERE  attrelid = :table::regclass
                         AND    attnum > 0
                         AND    NOT attisdropped
                         ORDER  BY attnum;"""
-            columns_data = conn_db().run(columns, (table_name[0], table_name[0]))
+            columns_data = conn_db().run(columns, table=table_name[0])
             column_names = []
             for col in columns_data:
                 column_names.append(col[0])
-            table_data = conn_db().run(query, (table_name[0],))
-            with open(f"tmp/{table_name[0]}.csv", "w", newline="") as csvfile:
+
+            table_data = conn_db().run(query)
+            with open(f"tmp/csv_input/{table_name[0]}.csv",
+                      "w", newline="") as csvfile:
                 w = csv.DictWriter(csvfile, column_names)
                 if csvfile.tell() == 0:
                     w.writeheader()
                 writer = csv.writer(csvfile)
                 writer.writerows(table_data)
         except IndexError:
-            raise ValueError(
-                'ERROR: SQL query invalid, nothing with that table name')
+            raise ValueError('ERROR: SQL query invalid, \
+                            nothing with that table name')
         except pg8000.dbapi.ProgrammingError as PE:
             if PE.args[0]['C'] == '42703':
                 raise ValueError(f"ERROR: {PE.args[0]['M']}")
@@ -315,3 +314,6 @@ def update_csv_export_file(bucket):
             "input_csv_key/csv_export.txt")
     except Exception as error:
         raise ValueError(f'ERROR: {error}')
+
+
+lambda_handler("m", "s")
