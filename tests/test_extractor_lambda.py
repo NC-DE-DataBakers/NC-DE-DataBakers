@@ -4,17 +4,26 @@ import pg8000
 import pytest
 import boto3
 import json
-import csv
 import os
+
+if not os.path.isdir('./tmp'):
+    os.makedirs('./tmp')
+if not os.path.isdir('./tmp/csv_input'):
+    os.makedirs('./tmp/csv_input')
+if not os.path.isdir('./tmp/csv_processed'):
+    os.makedirs('./tmp/csv_processed')
+if not os.path.isdir('./tmp/pqt_input'):
+    os.makedirs('./tmp/pqt_input')
+if not os.path.isdir('./tmp/pqt_processed'):
+    os.makedirs('./tmp/pqt_processed')
 
 #####
 #DB conn
 #####
 
 sm = boto3.client('secretsmanager')
-# sm.create_secret(Name='temp_totesys_creds_123456',SecretString='{"username":"project_user_2", "password":"paxjekPK3hDXu2aXcJ9xyuBS", "host":"nc-data-eng-totesys-production.chpsczt8h1nu.eu-west-2.rds.amazonaws.com", "database":"totesys", "port":"5432"}')
-    
-secret_value = sm.get_secret_value(SecretId="temp_totesys_creds_123456")['SecretString']
+
+secret_value = sm.get_secret_value(SecretId="totesys_creds")['SecretString']
 parsed_secret = json.loads(secret_value)
 host = parsed_secret["host"]
 port = parsed_secret["port"]
@@ -143,10 +152,10 @@ def test_setup_success_txt_file_exists():
         './tmp/setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
     input_bucket = get_csv_store_bucket()
     assert s3_setup_success(input_bucket) == True
-    files = os.listdir('./tmp')
+    files = os.listdir('./tmp/csv_input')
     for file in files:
-        os.remove(f'./tmp/{file}')
-    os.removedirs('./tmp')
+        os.remove(f'./tmp/csv_input/{file}')
+    
 
 @mock_s3
 def test_csv_files_are_uploaded_successfully_to_the_input_key_within_bucket():
@@ -155,9 +164,9 @@ def test_csv_files_are_uploaded_successfully_to_the_input_key_within_bucket():
     if not os.path.isdir('./tmp'):
         os.mkdir('./tmp')
     
-    open('./tmp/address.csv', 'w')
-    open('./tmp/counterparty.csv', 'w')
-    open('./tmp/currency.csv', 'w')
+    open('./tmp/csv_input/address.csv', 'w')
+    open('./tmp/csv_input/counterparty.csv', 'w')
+    open('./tmp/csv_input/currency.csv', 'w')
 
 
     csv_files = ['address.csv', 'counterparty.csv', 'currency.csv']
@@ -180,14 +189,14 @@ def test_csv_files_are_uploaded_successfully_to_the_input_key_within_bucket():
     keys = [object['Key'] for object in objects]
     assert all(f'input_csv_key/{file}' in keys for file in csv_files)
 
-    files = os.listdir('./tmp')
+    files = os.listdir('./tmp/csv_input')
     for file in files:
-        os.remove(f'./tmp/{file}')
-    os.removedirs('./tmp')
-    assert os.path.isfile("./tmp/address.csv'") is False
-    assert os.path.isfile("./tmp/counterparty.csv") is False
-    assert os.path.isfile("./tmp/currency.csv") is False
-    assert os.path.isdir('./tmp') is False
+        os.remove(f'./tmp/csv_input/{file}')
+    
+    assert os.path.isfile("./tmp/csv_input/address.csv'") is False
+    assert os.path.isfile("./tmp/csv_input/counterparty.csv") is False
+    assert os.path.isfile("./tmp/csv_input/currency.csv") is False
+    
 
 @mock_s3
 def test_creates_csv_export_completed_txt_file_if_files_are_uploaded():
@@ -205,12 +214,10 @@ def test_creates_csv_export_completed_txt_file_if_files_are_uploaded():
     input_bucket = get_csv_store_bucket()
     update_csv_export_file(input_bucket)
     assert os.path.isfile('./tmp/csv_export.txt')
-    files = os.listdir('./tmp')
+    
+    files = os.listdir('./tmp/csv_input')
     for file in files:
-        os.remove(f'./tmp/{file}')
-    os.removedirs('./tmp')
-    assert os.path.isfile("./tmp/csv_export.txt") is False
-    assert os.path.isdir('./tmp') is False
+        os.remove(f'./tmp/csv_input/{file}')
 
 
 """Before running the test_logs_for_each_run_by_checking_log_line_count test, ensure the csv_export_completed.txt does not already exist.
@@ -237,12 +244,9 @@ def test_logs_for_each_run_by_checking_log_line_count():
     with open("./tmp/csv_export.txt", 'r') as f:
         assert len(f.readlines()) == 1
 
-    files = os.listdir('./tmp')
+    files = os.listdir('./tmp/csv_input')
     for file in files:
-        os.remove(f'./tmp/{file}')
-    os.removedirs('./tmp')
-    assert os.path.isfile("./tmp/csv_export.txt") is False
-    assert os.path.isdir('./tmp') is False
+        os.remove(f'./tmp/csv_input/{file}')
 
 @mock_s3
 def test_uploads_csv_export_file_to_key_within_bucket():
@@ -251,14 +255,14 @@ def test_uploads_csv_export_file_to_key_within_bucket():
     s3cli.put_object(Bucket='nc-de-databakers-csv-store-20202',
                      Key='input_csv_key/')
     s3res = boto3.resource('s3')
-    if not os.path.isdir('./tmp'):
-        os.makedirs('./tmp')
-    open('./tmp/setup_success_csv_input.txt', 'w')
-    open('./tmp/csv_export.txt', 'w')
+    if not os.path.isdir('./tmp/csv_input'):
+        os.makedirs('./tmp/csv_input')
+    open('./tmp/csv_input/setup_success_csv_input.txt', 'w')
+    open('./tmp/csv_input/csv_export.txt', 'w')
     s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
-        './tmp/setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
+        './tmp/csv_input/setup_success_csv_input.txt', 'input_csv_key/setup_success_csv_input.txt')
     s3res.Bucket('nc-de-databakers-csv-store-20202').upload_file(
-        './tmp/csv_export.txt', 'input_csv_key/csv_export.txt')
+        './tmp/csv_input/csv_export.txt', 'input_csv_key/csv_export.txt')
     input_bucket = get_csv_store_bucket()
     s3_upload_csv_files(input_bucket)
     objects = s3cli.list_objects(
@@ -266,12 +270,10 @@ def test_uploads_csv_export_file_to_key_within_bucket():
     keys = [object['Key'] for object in objects]
     assert 'input_csv_key/csv_export.txt' in keys
 
-    files = os.listdir('./tmp')
+    files = os.listdir('./tmp/csv_input')
     for file in files:
-        os.remove(f'./tmp/{file}')
-    os.removedirs('./tmp')
-    assert os.path.isfile("./tmp/csv_export.txt") is False
-    assert os.path.isdir('./tmp') is False
+        os.remove(f'./tmp/csv_input/{file}')
+
 
 @mock_s3
 def test_list_prefix_buckets_raises_exception_when_there_are_no_buckets():
