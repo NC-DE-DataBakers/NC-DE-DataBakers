@@ -32,8 +32,8 @@ def lambda_handler(event, context):
         result in an informative log message.
     """
     try:
-        if not os.path.isdir('./tmp'):
-            os.makedirs('./tmp')
+        create_dirs()
+
         # call DB and save CSV files
         put_tables_to_csv()
 
@@ -43,10 +43,8 @@ def lambda_handler(event, context):
         s3_upload_csv_files(input_bucket)
         update_csv_export_file(input_bucket)
         
-        files = os.listdir('./tmp')
-        for file in files:
-            os.remove(f'./tmp/{file}')
-        os.removedirs('./tmp')
+        clean_tmp()
+        
     except Exception as error:
         logger.error(error)
 
@@ -55,6 +53,37 @@ def lambda_handler(event, context):
 # DB defs
 ######
 
+def create_dirs():
+    clean_tmp()
+
+    if not os.path.isdir('./tmp'):
+        os.makedirs('./tmp')
+    if not os.path.isdir('./tmp/csv_input'):
+        os.makedirs('./tmp/csv_input')
+    if not os.path.isdir('./tmp/csv_processed'):
+        os.makedirs('./tmp/csv_processed')
+    if not os.path.isdir('./tmp/pqt_input'):
+        os.makedirs('./tmp/pqt_input')
+    if not os.path.isdir('./tmp/pqt_processed'):
+        os.makedirs('./tmp/pqt_processed')
+    
+def clean_tmp():
+    folders = [ f.path for f in os.scandir('./tmp') if f.is_dir() ]
+
+    for folder in folders:
+        files = os.listdir(folder)
+        for file in files:
+            os.remove(f'{folder}{file}')
+
+        os.rmdir(folder) # os.removedirs removes parent directory if it is empty in the last run!
+ 
+    if os.path.isdir('./tmp'):
+
+        files = os.listdir('./tmp')
+        for file in files:
+            os.remove(f'./tmp/{file}')
+
+    
 def conn_db():
     """Using the required dotenv variables to feed the pg8000 connection function with the correct host name, database name and credentials.
     We will be able to access the database in a pythonic context and use python and PostgreSQL to achieve the intended functionality.
@@ -209,10 +238,10 @@ def s3_upload_csv_files(input_bucket):
     s3=boto3.resource('s3')
     if s3_setup_success(input_bucket):
         if os.path.exists('./tmp'):
-            csv_files = os.listdir('./tmp')
+            csv_files = os.listdir('./tmp/csv_input')
             if len(csv_files) > 0:
                 for file in csv_files:
-                    s3.Bucket(get_csv_store_bucket()).upload_file(f'./tmp/{file}', f'input_csv_key/{file}')
+                    s3.Bucket(get_csv_store_bucket()).upload_file(f'./tmp/csv_input/{file}', f'input_csv_key/{file}')
             else:
                 raise ValueError('ERROR: No CSV files to upload to S3 are found')
         else:
@@ -233,16 +262,17 @@ def update_csv_export_file(bucket):
   s3=boto3.client('s3')
 
   try:
-    s3.download_file(bucket, 'input_csv_key/csv_export.txt', './tmp/csv_export.txt')
+    s3.download_file(bucket, 'input_csv_key/csv_export.txt', './tmp/csv_input/csv_export.txt')
   except Exception as error:
         raise ValueError(f'ERROR: {error}')
 
-  contents = open('./tmp/csv_export.txt', 'r').read()
+  contents = open('./tmp/csv_input/csv_export.txt', 'r').read()
   num = int(contents.split(' ')[1])
-  with open('./tmp/csv_export.txt', 'w+') as file:
+  with open('./tmp/csv_input/csv_export.txt', 'w+') as file:
     file.write(f'Run {num+1}')
   
   try:
-    s3.upload_file("./tmp/csv_export.txt", bucket, "input_csv_key/csv_export.txt")
+    s3.upload_file("./tmp/csv_input/csv_export.txt", bucket, "input_csv_key/csv_export.txt")
   except Exception as error:
         raise ValueError(f'ERROR: {error}')
+  
