@@ -192,7 +192,7 @@ def put_tables_to_csv():
     table_names = db_tables_fetcher()
     for table_name in table_names:
         try:
-            query = f"SELECT * FROM {identifier(table_name[0])}"
+            query = "SELECT * FROM %s"
             columns = """SELECT attname, format_type(atttypid, atttypmod)\
                  AS type
                         FROM   pg_attribute
@@ -200,11 +200,11 @@ def put_tables_to_csv():
                         AND    attnum > 0
                         AND    NOT attisdropped
                         ORDER  BY attnum;"""
-            columns_data = conn_db().run(columns, table=table_name[0])
+            columns_data = conn_db().run(columns, (table_name[0], table_name[0]))
             column_names = []
             for col in columns_data:
                 column_names.append(col[0])
-            table_data = conn_db().run(query)
+            table_data = conn_db().run(query, (table_name[0],))
             with open(f"tmp/{table_name[0]}.csv", "w", newline="") as csvfile:
                 w = csv.DictWriter(csvfile, column_names)
                 if csvfile.tell() == 0:
