@@ -1,24 +1,46 @@
 # NC-DE-DataBakers
+
 Data Engineering Project - create applications that will Extract, Transform and Load data from a prepared source into a data lake and warehouse hosted in AWS.
 
-Prerequisites
+---
+
+## Prerequisites
+
 This is an example of how to list things you need to use the software and how to install them.
 
-Installation:
+### AWS
+
+Remember to set up your AWS credentials using `aws configure`.
+
+### Setup Virtual Environment
+
+Create a virtual environment and activate with the commands:
+
+```console
+python -m venv venv
+source venv/bin/activate
+```
+
+### Installation
+
+```console
 pip install -r requirements.txt
+```
 
-conn.py
-  using pg8000, a connection is made using credentials sourced from AWS secrets manager, retreiving the stored database credentials.
-  querys to the database, SELECT table_name, passing them to lambda_handler() where a new SQL query is made to SELECT * from each table provided. this data is saved to csv, and uploaded to the processing bucket hosted on aws s3.
+## conn.py
 
-  Common errorhandling include:
-    Connection errors - DatabaseError: '28P01' - user/password is incorrect
-    Connection errors - ProgrammingError: '28P01' - user/password is incorrect
-    Connection errors - ProgrammingError: '3D000' - database does not exist
-    Connection errors - InterfaceError: - typically a bad host name
+Using `pg8000`, a connection is made using credentials sourced from AWS secrets manager, retreiving the stored database credentials.
+Querys to the database, `SELECT table_name`, passing them to `lambda_handler()` where a new SQL query is made to `SELECT *` from each table provided. This data is saved to csv, and uploaded to the processing bucket hosted on aws s3.
 
-    Query errors - ProgrammingError: '42703' - column does not exist
-    Query errors - ProgrammingError: '42P01' - relation to table does not exist
+Common errorhandling include:
+
+Connection errors - DatabaseError: '28P01' - user/password is incorrect
+Connection errors - ProgrammingError: '28P01' - user/password is incorrect
+Connection errors - ProgrammingError: '3D000' - database does not exist
+Connection errors - InterfaceError: - typically a bad host name
+
+Query errors - ProgrammingError: '42703' - column does not exist
+Query errors - ProgrammingError: '42P01' - relation to table does not exist
 
 s3_helper.py
   Using boto3, we are able to access AWS directly. This enables us to upload files to the input key, within the CSV store bucket, by implementing Python logic.
