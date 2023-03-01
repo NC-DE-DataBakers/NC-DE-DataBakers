@@ -50,9 +50,10 @@ The extractor_lambda, transformer_lambda and loader_lambda are used to automate 
 
 Using `pg8000`, a connection is made using credentials sourced from the AWS secrets manager.
 
-The `extractor_lambda` extracts data from the ToteSys database, temporarily saving them to a local `tmp` directory as CSV files.  
-With `boto3`, we can access the AWS console and load these files to the `input_csv_key` within the `csv-store` S3 bucket.  
-Upon completion of loading the CSV files to the targeted key, a `csv_export.txt` file is generated and loaded, confirming success of data extraction.
+The `extractor_lambda` extracts data from the ToteSys database and loads this to AWS. 
+
+For each table in the ToteSys database, data is extracted using PSQL queries and temporarily saving them to a local `tmp/csv_input` directory as CSV files.  
+With `boto3`, we can access the AWS console and load these files to the `input_csv_key` within the `csv-store` S3 bucket.
 
 <table>
 <tr><th>Local tmp directory</th><th>AWS S3 bucket</th></tr>
@@ -70,13 +71,26 @@ _Loaded from local tmp directory_
 
 </td></tr> </table>
 
+Common error handling includes:
+
+ConnectionErrors - `InterfaceError:` - Typically a bad host name.  
+ConnectionErrors - `DatabaseError: 28P01` - User/Password is incorrect.  
+ConnectionErrors - `ProgrammingError: 28P01` - User/Password is incorrect.  
+ConnectionErrors - `ProgrammingError: 3D000` - Database does not exist.
+
+QueryErrors - `ProgrammingError: 42703` - Column does not exist.  
+QueryErrors - `ProgrammingError: 42P01` - Relation to table does not exist.
+
 ### Transformer Lambda
 
-The `transformer_lambda` remodels the data into a star schema ready for conversion to parquet format.  
-With `boto3`, the CSV files are moved from the `input_csv_key` and `processed_csv_key` within the `csv-store` S3 bucket hosted on AWS. These are then downloaded and temporarily stored in a local `tmp` directory.  
+The `transformer_lambda` remodels the data into a star schema ready for conversion to parquet format.
+
+With `boto3`, the CSV files are moved from the `input_csv_key` and `processed_csv_key` within the `csv-store` S3 bucket hosted on AWS.  
+These are then downloaded from the `processed_csv_key` and temporarily stored in a local `tmp/csv_processed` directory.  
 Utilising `pandas`, the CSV files are remodelled as required to create dimension tables and a fact table forming a star schema conforming to the warehouse data model.
 
-_Example:_
+_Example:
+Using `pandas`, the `staff` and `department` dataframes are merged on a correlation of column such as `department_id`. The `dim_staff` dataframe is created from the merged dataframe and saved to the local `tmp/csv_processed` as a CSV file._
 <table>
 <tr><th>staff</th><th>department</th><th>dim_staff</th></tr>
 <tr><td>
@@ -102,11 +116,21 @@ _Example:_
 
 </td></tr> </table>
 
-These are then temporarily stored locally in `tmp/csv_processed` ready to be converted to parquet format and exported to the local `tmp/pqt_processed` directory. Once the conversion is complete, the parquet files are loaded into the `input_parquet_key` within the `parquet-store` S3 bucket.
+These new tables are then temporarily stored locally in `tmp/csv_processed` ready to be converted to parquet format and exported to the local `tmp/pqt_processed` directory.  
+Once the conversion is complete, the parquet files are loaded into the `input_parquet_key` within the `parquet-store` S3 bucket.
+
+Common error handling includes:
+
+ValueError - `pd.errors.EmptyDataError` - Files exist but are empty.  
+ValueError - `pd.errors.DtypeWarning` - Column data mismatch.
 
 ### Loader Lambda
 
-The `loader_lambda` loads.
+The `loader_lambda` populates the tables in the data warehouse with data from the parquet files.
+
+With `boto3`, the parquet files are downloaded from the `input_parquet_key` and temporarily stored locally in `tmp/pqt_input`.  
+Connecting to the data warehouse with `pg8000`, `pandas` is used to populate the data warehouse with data from the downloaded parquet files.  
+The parquet files within the `input_parquet_key` are then moved to the `processed_parquet_key` before emptying the `input_parquet_key` ready for new data.
 
 ## Testing
 
@@ -117,36 +141,9 @@ Example:
 pytest tests/test_extractor_lambda.py
 ```
 
-<!-- ## conn.py
-
-Using `pg8000`, a connection is made using credentials sourced from AWS secrets manager, retreiving the stored database credentials.
-Querys to the database, `SELECT table_name`, passing them to `lambda_handler()` where a new SQL query is made to `SELECT *` from each table provided. This data is saved to csv, and uploaded to the processing bucket hosted on aws s3.
-
-Common errorhandling include:
-
-Connection Errors - `InterfaceError:` - Typically a bad host name.  
-Connection Errors - `DatabaseError: 28P01` - User/Password is incorrect.  
-Connection Errors - `ProgrammingError: 28P01` - User/Password is incorrect.  
-Connection Errors - `ProgrammingError: 3D000` - Database does not exist.  
-
-Query Errors - `ProgrammingError: 42703` - Column does not exist.  
-Query Errors - `ProgrammingError: 42P01` - Relation to table does not exist.
-
-## s3_helper.py
-Using boto3, we are able to access AWS directly. This enables us to upload files to the input key, within the CSV store bucket, by implementing Python logic.
-
-Ensuring the setup_success_csv_input.txt file exists, indicates the terraform has been deployed succesfully. The CSV files generated (locally) from the lambda_handler() function can then be uploaded to the input key, within the CSV store bucket.
-
-After completion of uploading the CSV files, a text file csv_export_completed.txt, containing the most recent run number is created and uploaded to the input key, within the CSV store bucket. The latest run number can be found in the run_number.txt file.
-
-Common error-handling includes:
-No buckets have been created - Error raised: 'No buckets found'
-The CSV store bucket has not been created - Error raised: 'Prefix not found in any bucket'
-Terraform has not been deployed - Error: 'Terraform deployment unsuccessful'
-
+<!--
 ## csv_to_parquet.py
-Connection to the s3 bucket, is made to parse a list of available buckets and their suffix's. once the correct bucket is found, itterating over each file to extract their name prior to downloading to a local './tmp' folder.
-each file is converted from csv to parquet using the pandas library - pyarrow/fastparquet engine. and stored locally ready to to be sent to the parquet input bucket.
+
 
 common error-handling include:
 no data in CSV - pd.errors.EmptyDataError 
