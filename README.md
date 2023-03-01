@@ -1,18 +1,23 @@
 # **NC-DE-DataBakers**
 
-Data Engineering Project - create applications that will Extract, Transform and Load (ETL) data from a prepared source into a data lake and warehouse hosted in AWS.
+## **Data Engineering Project**
+
+Creating applications that will Extract, Transform and Load (ETL) data from a prepared source (ToteSys database) into a data lake and warehouse hosted in AWS.
 
 ---
 
 ## **Prerequisites**
 
-This is an example of how to list things you need to use the software and how to install them.
+Before running this software you will need to set up your environment as described below.
+
+<br>
 
 ### AWS
 
 Remember to set up your AWS credentials by running `aws configure` in your terminal.
 
 Note: You can set the region and output format as _default_ by leaving the fields empty.
+
 ```python
 aws configure
 AWS Access Key ID [****************ABCD]:
@@ -20,6 +25,8 @@ AWS Access Key ID [****************ABCD]:
 AWS Secret Access Key [****************tr68]:
 # YOUR_SECRET_KEY
 ```
+
+<br>
 
 ### Setup Virtual Environment
 
@@ -31,6 +38,8 @@ Create and activate your virtual environment with the commands:
 python -m venv venv
 source venv/bin/activate
 ```
+
+<br>
 
 ### Installation
 
@@ -64,11 +73,19 @@ terraform destroy
 # Destroy your terraform infrastructure
 ```
 
+Credentials are stored and managed by the secrets manager to maintain confidentiality.
+
+The event scheduler runs the `extractor_lambda` every 10 minutes to detect any new data. This then triggers the `transformer_lambda` and `loader_lamda` to run.
+
+Cloudwatch monitor the progress and logs the activities. In the case where an error arises, SNS notifications is set up to alert you via email.
+
 ---
 
 ## **ETL**
 
 The extractor_lambda, transformer_lambda and loader_lambda are used to automate the ETL process.
+
+<br>
 
 ### Extractor Lambda
 
@@ -104,6 +121,8 @@ ConnectionErrors - `ProgrammingError: 3D000` - Database does not exist.
 
 QueryErrors - `ProgrammingError: 42703` - Column does not exist.  
 QueryErrors - `ProgrammingError: 42P01` - Relation to table does not exist.
+
+<br>
 
 ### Transformer Lambda
 
@@ -148,6 +167,8 @@ Common error handling includes:
 ValueError - `pd.errors.EmptyDataError` - Files exist but are empty.  
 ValueError - `pd.errors.DtypeWarning` - Column data mismatch.
 
+<br>
+
 ### Loader Lambda
 
 The `loader_lambda` populates the tables in the data warehouse with data from the parquet files.
@@ -160,11 +181,35 @@ The parquet files within the `input_parquet_key` are then moved to the `processe
 # screenshots?
 ```
 
+<br>
+
 ## Testing
 
 You can run the tests using `pytest` which, by default, will run all tests for the lambda handlers. To run individual tests, provide the path of the specfic test file.
 
 Example:
 ```python
-pytest tests/test_extractor_lambda.py
+pytest tests/<file_path>
+```
+
+<br>
+
+## Compliance Checks
+
+Complying with the PEP8 style guide, all Python codes are automatically formatted by running the command:
+
+```python
+autopep8 <file_path>
+
+# Flags are optional to determine aggressiveness or list potential fixes
+# autopep8 <file_path> --in-place -a
+# autopep8 <file_path> --in-place -a -a
+# autopep8 <file_path> --list-fixes
+```
+
+To test for security vulnerabilities, the `safety` and `bandit` packages can be utilised by running the commands:
+
+```console
+safety check
+bandit -lll <file_path>
 ```
