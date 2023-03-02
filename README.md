@@ -75,7 +75,7 @@ terraform destroy
 
 Credentials are stored and managed by the secrets manager to maintain confidentiality.
 
-The event scheduler runs the `extractor_lambda` every 10 minutes to detect any new data. This then triggers the `transformer_lambda` and `loader_lamda` to run.
+The event scheduler runs the `extractor_lambda` every 15 minutes to detect any new data. This then triggers the `transformer_lambda` and `loader_lamda` to run.
 
 Cloudwatch monitor the progress and logs the activities. In the case where an error arises, SNS notifications is set up to alert you via email.
 
@@ -84,6 +84,8 @@ Cloudwatch monitor the progress and logs the activities. In the case where an er
 ## **ETL**
 
 The extractor_lambda, transformer_lambda and loader_lambda are used to automate the ETL process.
+
+<img src="readme_media/diagram.png" height="650">
 
 <br>
 
@@ -176,10 +178,6 @@ The `loader_lambda` populates the tables in the data warehouse with data from th
 With `boto3`, the parquet files are downloaded from the `input_parquet_key` and temporarily stored locally in `tmp/pqt_input`.  
 Connecting to the data warehouse with `pg8000`, `pandas` is used to populate the data warehouse with data from the downloaded parquet files.  
 The parquet files within the `input_parquet_key` are then moved to the `processed_parquet_key` before emptying the `input_parquet_key` ready for new data.
-
-```python
-# screenshots?
-```
 
 <br>
 
