@@ -36,7 +36,7 @@ def lambda_handler(event, context):
 
         # Empty the data warehouse
         empty_tables()
-
+        
         # Fill the data warehouse
         fill_tables()
 
@@ -310,13 +310,24 @@ def empty_tables():
         Not required.
     """
 
-    # delete_query = "DELETE FROM dim_date WHERE year > 1800 RETURNING *;"
-    delete_query = 'TRUNCATE dim_date, dim_staff, dim_location, dim_currency, dim_design, dim_counterparty, fact_sales_order;'
+    delete_queries = ['DELETE FROM fact_sales_order;',
+                      'DELETE FROM dim_date;',
+                      'DELETE FROM dim_staff;',
+                      'DELETE FROM dim_location;',
+                      'DELETE FROM dim_currency;',
+                      'DELETE FROM dim_design;',
+                      'DELETE FROM dim_counterparty;'
+                    ]
 
     try:
         conn = conn_db()
-        cur = conn.cursor()
-        cur.execute(delete_query)
+
+        for query in delete_queries:
+            conn.run(query)
+
+        conn.commit()
+        conn.close()
+        
         return True
     except pg8000.dbapi.ProgrammingError as PE:
         if PE.args[0]['C'] == '42703':
@@ -376,3 +387,4 @@ def fill_tables():
         '/tmp/pqt_input/fact_sales_order.parquet')
     fact_sales_order.to_sql('fact_sales_order', engine,
                             if_exists='append', index=False)
+    
