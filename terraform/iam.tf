@@ -20,14 +20,48 @@ resource "aws_iam_role" "extractor_lambda_role" {
     EOF
 }
 
-data "aws_iam_policy_document" "iam_create_and_detach_document" {
-  statement {
-    actions = ["iam:DetachRolePolicy", "iam:CreatePolicyVersion"]
+resource "aws_iam_role" "transformer_lambda_role" {
+  name_prefix        = "role-databakers-${var.transformer_lambda_name}-"
+  assume_role_policy = <<EOF
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "sts:AssumeRole"
+                ],
+                "Principal": {
+                    "Service": [
+                        "lambda.amazonaws.com"
+                    ]
+                }
+            }
+        ]
+    }
+    EOF
+}
 
-    resources = [
-      "arn:aws:iam:::policy/*"
-    ]
-  }
+resource "aws_iam_role" "loader_lambda_role" {
+  name_prefix        = "role-databakers-${var.loader_lambda_name}-"
+  assume_role_policy = <<EOF
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "sts:AssumeRole"
+                ],
+                "Principal": {
+                    "Service": [
+                        "lambda.amazonaws.com"
+                    ]
+                }
+            }
+        ]
+    }
+    EOF
 }
 
 
@@ -50,21 +84,112 @@ data "aws_iam_policy_document" "s3_read_document" {
   }
 }
 
-data "aws_iam_policy_document" "s3_write_document" {
+data "aws_iam_policy_document" "s3_write_document_extractor" {
   statement {
     actions = [
       "s3:GetObject",
       "s3:ListBucket",
       "s3:PutObject",
-    "s3:DeleteObject"]
+      "s3:DeleteObject"]
 
     resources = [
-      "${aws_s3_bucket.csv_bucket.arn}/${var.csv_input_name}_key/*"
+      "${aws_s3_bucket.csv_bucket.arn}/*"
+    ]
+  }
+
+  statement {
+    actions = [
+      "secretsmanager:GetSecretValue", 
+      "secretsmanager:ListSecrets",
+      "secretsmanager:DescribeSecret"]
+
+    resources = [
+     aws_secretsmanager_secret.sm_totesys.arn 
+     # "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${}
+    ]
+  }
+
+  statement {
+    actions = [
+        "elasticfilesystem:ClientMount",
+        "elasticfilesystem:ClientRootAccess",
+        "elasticfilesystem:ClientWrite",
+        "elasticfilesystem:DescribeMountTargets"]
+
+    resources = [
+      "*"
+    ]
+  }
+
+}
+
+data "aws_iam_policy_document" "s3_write_document_transformer" {
+
+  statement {
+    actions = [
+      "s3:GetObject",
+      "s3:ListObjects",
+      "s3:ListBucket",
+      "s3:PutObject",
+      "s3:DeleteObject"]
+
+    resources = [
+      "${aws_s3_bucket.csv_bucket.arn}/*",
+      "${aws_s3_bucket.parquet_bucket.arn}/*"
+    ]
+  }
+
+  statement {
+    actions = [
+        "elasticfilesystem:ClientMount",
+        "elasticfilesystem:ClientRootAccess",
+        "elasticfilesystem:ClientWrite",
+        "elasticfilesystem:DescribeMountTargets"]
+
+    resources = [
+      "*"
     ]
   }
 }
 
-data "aws_iam_policy_document" "cw_document" {
+data "aws_iam_policy_document" "s3_write_document_loader" {
+  statement {
+    actions = [
+      "s3:GetObject",
+      "s3:ListBucket",
+      "s3:PutObject",
+      "s3:DeleteObject"]
+
+    resources = [
+      "${aws_s3_bucket.parquet_bucket.arn}/*"
+    ]
+  }
+
+  statement {
+    actions = [
+      "secretsmanager:GetSecretValue", 
+      "secretsmanager:ListSecrets",
+      "secretsmanager:DescribeSecret"]
+
+    resources = [
+      aws_secretsmanager_secret.sm_dw.arn
+    ]
+  }
+
+  statement {
+    actions = [
+        "elasticfilesystem:ClientMount",
+        "elasticfilesystem:ClientRootAccess",
+        "elasticfilesystem:ClientWrite",
+        "elasticfilesystem:DescribeMountTargets"]
+
+    resources = [
+      "*"
+    ]
+  }
+}
+
+data "aws_iam_policy_document" "cw_document_extractor" {
   statement {
     actions = ["logs:CreateLogGroup"]
 
@@ -74,7 +199,7 @@ data "aws_iam_policy_document" "cw_document" {
   }
 
   statement {
-    actions = ["logs:CreateLogStream", "logs:PutLogEvents", "logs:CreateLogGroup", "logs:PutRetentionPolicy"]
+    actions = ["logs:CreateLogStream", "logs:PutLogEvents"] #, "logs:CreateLogGroup", "logs:PutRetentionPolicy"
 
     resources = [
       "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.extractor_lambda_name}:*"
@@ -82,79 +207,119 @@ data "aws_iam_policy_document" "cw_document" {
   }
 }
 
-# data "aws_iam_policy_document" "secrets_manager" {
-#   statement {
-#     actions = ["secretsmanager:*"]
+data "aws_iam_policy_document" "cw_document_transformer" {
+  statement {
+    actions = ["logs:CreateLogGroup"]
 
-#     resources = [aws_secretsmanager_secret.sm_totesys.arn]
+    resources = [
+      "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:*"
+    ]
+  }
 
-#     effect = "Allow"
-#   }
-# }
+  statement {
+    actions = ["logs:CreateLogStream", "logs:PutLogEvents"] #, "logs:CreateLogGroup", "logs:PutRetentionPolicy"
 
+    resources = [
+      "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.transformer_lambda_name}:*"
+    ]
+  }
+}
+
+data "aws_iam_policy_document" "cw_document_loader" {
+  statement {
+    actions = ["logs:CreateLogGroup"]
+
+    resources = [
+      "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:*"
+    ]
+  }
+
+  statement {
+    actions = ["logs:CreateLogStream", "logs:PutLogEvents"] #, "logs:CreateLogGroup", "logs:PutRetentionPolicy"
+
+    resources = [
+      "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.loader_lambda_name}:*"
+    ]
+  }
+}
 
 resource "aws_iam_policy" "s3_read_policy" {
-  name_prefix = "s3-policy-${var.extractor_lambda_name}-"
+  name_prefix = "s3-read-all-policy-databakers-"
   policy      = data.aws_iam_policy_document.s3_read_document.json
 }
 
-resource "aws_iam_policy" "s3_write_policy" {
+resource "aws_iam_policy" "s3_write_policy_extractor" {
   name_prefix = "s3-policy-${var.extractor_lambda_name}-"
-  policy      = data.aws_iam_policy_document.s3_write_document.json
+  policy      = data.aws_iam_policy_document.s3_write_document_extractor.json
 }
 
-resource "aws_iam_policy" "cw_policy" {
+resource "aws_iam_policy" "s3_write_policy_transformer" {
+  name_prefix = "s3-policy-${var.transformer_lambda_name}-"
+  policy      = data.aws_iam_policy_document.s3_write_document_transformer.json
+}
+
+resource "aws_iam_policy" "s3_write_policy_loader" {
+  name_prefix = "s3-policy-${var.loader_lambda_name}-"
+  policy      = data.aws_iam_policy_document.s3_write_document_loader.json
+}
+
+resource "aws_iam_policy" "cw_policy_extractor" {
   name_prefix = "cw-policy-${var.extractor_lambda_name}-"
-  policy      = data.aws_iam_policy_document.cw_document.json
+  policy      = data.aws_iam_policy_document.cw_document_extractor.json
 }
 
-resource "aws_iam_policy" "iam_create_and_detach_policy" {
-  name_prefix = "iam_create_and_detach_policy-${var.extractor_lambda_name}-"
-  policy      = data.aws_iam_policy_document.iam_create_and_detach_document.json
+resource "aws_iam_policy" "cw_policy_transformer" {
+  name_prefix = "cw-policy-${var.transformer_lambda_name}-"
+  policy      = data.aws_iam_policy_document.cw_document_transformer.json
 }
 
-# resource "aws_iam_policy" "secrets_manager_policy" {
-#   name_prefix = "secretsmanager-policy-${var.extractor_lambda_name}-"
-#   policy      = data.aws_iam_policy_document.secrets_manager.json
-# }
+resource "aws_iam_policy" "cw_policy_loader" {
+  name_prefix = "cw-policy-${var.loader_lambda_name}-"
+  policy      = data.aws_iam_policy_document.cw_document_loader.json
+}
 
-
-resource "aws_iam_role_policy_attachment" "lambda_s3_write_policy_attachment" {
+resource "aws_iam_role_policy_attachment" "lambda_s3_read_policy_extractor_attachment" {
   role       = aws_iam_role.extractor_lambda_role.name
-  policy_arn = aws_iam_policy.s3_write_policy.arn
+  policy_arn = aws_iam_policy.s3_read_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_cw_policy_attachment" {
+resource "aws_iam_role_policy_attachment" "lambda_s3_write_policy_extractor_attachment" {
   role       = aws_iam_role.extractor_lambda_role.name
-  policy_arn = aws_iam_policy.cw_policy.arn
+  policy_arn = aws_iam_policy.s3_write_policy_extractor.arn
 }
 
-resource "aws_iam_user_policy_attachment" "iam_create_and_detach_policy_attachment" {
-  user = data.aws_caller_identity.current.user_id
-  policy_arn = aws_iam_policy.iam_create_and_detach_policy.arn
+resource "aws_iam_role_policy_attachment" "lambda_s3_read_policy_transformer_attachment" {
+  role       = aws_iam_role.transformer_lambda_role.name
+  policy_arn = aws_iam_policy.s3_read_policy.arn
 }
 
-# resource "aws_iam_policy_attachment" "lambda_secretsmanager_policy_attachment" {
-#   name       = "secrets_manager_policy_attachment"
-#   roles      = [aws_iam_role.extractor_lambda_role.name]
-#   users      = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
-#   policy_arn = aws_iam_policy.secrets_manager_policy.arn
-# }
+resource "aws_iam_role_policy_attachment" "lambda_s3_write_policy_transformer_attachment" {
+  role       = aws_iam_role.transformer_lambda_role.name
+  policy_arn = aws_iam_policy.s3_write_policy_transformer.arn
+}
 
-# resource "aws_iam_role_policy" "sm_policy" {
-#   name = "sm_access_permissions"
-#   role = aws_iam_role.extractor_lambda_role.id
+resource "aws_iam_role_policy_attachment" "lambda_s3_read_policy_loader_attachment" {
+  role       = aws_iam_role.loader_lambda_role.name
+  policy_arn = aws_iam_policy.s3_read_policy.arn
+}
 
-#   policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Action = [
-#           "secretsmanager:*",
-#         ]
-#         Effect   = "Allow"
-#         Resource = "*"
-#       },
-#     ]
-#   })
-# }
+resource "aws_iam_role_policy_attachment" "lambda_s3_write_policy_loader_attachment" {
+  role       = aws_iam_role.loader_lambda_role.name
+  policy_arn = aws_iam_policy.s3_write_policy_loader.arn
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_cw_policy_extractor_attachment" {
+  role       = aws_iam_role.extractor_lambda_role.name
+  policy_arn = aws_iam_policy.cw_policy_extractor.arn
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_cw_policy_transformer_attachment" {
+  role       = aws_iam_role.transformer_lambda_role.name
+  policy_arn = aws_iam_policy.cw_policy_transformer.arn
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_cw_policy_loader_attachment" {
+  role       = aws_iam_role.loader_lambda_role.name
+  policy_arn = aws_iam_policy.cw_policy_loader.arn
+}
+

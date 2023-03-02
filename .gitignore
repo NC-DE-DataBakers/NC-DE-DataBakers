@@ -56,3 +56,4 @@ terraform.rc
 tmp/
 pqt_tmp/
 tmp_copy/
+sourcecode-*/

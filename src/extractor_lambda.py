@@ -15,17 +15,14 @@ logger.setLevel(logging.INFO)
 
 def lambda_handler(event, context):
     """Handles S3 PutObject event and logs the contents of file.
-
     On receipt of a PutObject event, checks that the file type is txt and
     then logs the contents.
-
     Args:
         event:
             a valid S3 PutObject event
         context:
             a valid AWS lambda Python context object - see
             https://docs.aws.amazon.com/lambda/latest/dg/python-context.html
-
     Raises:
         RuntimeError: An unexpected error occurred in execution. Other errors
         result in an informative log message.
@@ -42,7 +39,7 @@ def lambda_handler(event, context):
         s3_upload_csv_files(input_bucket)
         update_csv_export_file(input_bucket)
 
-        # clean_tmp()
+        clean_tmp()
 
     except Exception as error:
         logger.error(error)
@@ -55,20 +52,20 @@ def lambda_handler(event, context):
 def create_dirs():
     clean_tmp()
 
-    if not os.path.isdir('./tmp'):
-        os.makedirs('./tmp')
-    if not os.path.isdir('./tmp/csv_input'):
-        os.makedirs('./tmp/csv_input')
-    if not os.path.isdir('./tmp/csv_processed'):
-        os.makedirs('./tmp/csv_processed')
-    if not os.path.isdir('./tmp/pqt_input'):
-        os.makedirs('./tmp/pqt_input')
-    if not os.path.isdir('./tmp/pqt_processed'):
-        os.makedirs('./tmp/pqt_processed')
+    if not os.path.isdir('/tmp/'):
+        os.makedirs('/tmp/')
+    if not os.path.isdir('/tmp/csv_input/'):
+        os.makedirs('/tmp/csv_input/')
+    if not os.path.isdir('/tmp/csv_processed/'):
+        os.makedirs('/tmp/csv_processed/')
+    if not os.path.isdir('/tmp/pqt_input/'):
+        os.makedirs('/tmp/pqt_input/')
+    if not os.path.isdir('/tmp/pqt_processed/'):
+        os.makedirs('/tmp/pqt_processed/')
 
 
 def clean_tmp():
-    folders = [f.path for f in os.scandir('./tmp') if f.is_dir()]
+    folders = [f.path for f in os.scandir('/tmp/') if f.is_dir()]
 
     for folder in folders:
         files = os.listdir(folder)
@@ -79,11 +76,11 @@ def clean_tmp():
         # run!
         os.rmdir(folder)
 
-    if os.path.isdir('./tmp'):
+    if os.path.isdir('/tmp/'):
 
-        files = os.listdir('./tmp')
+        files = os.listdir('/tmp/')
         for file in files:
-            os.remove(f'./tmp/{file}')
+            os.remove(f'/tmp/{file}')
 
 
 def conn_db():
@@ -91,10 +88,8 @@ def conn_db():
     function with the correct host name, database name and credentials.
     We will be able to access the database in a pythonic context
     and use python and PostgreSQL to achieve the intended functionality.
-
     Args:
         Not required.
-
     Returns:
         conn (pg8000.legacy.Connection):
         A database connection to be used by name_fetcher function.
@@ -145,10 +140,8 @@ def db_tables_fetcher():
     , within the ToteSys database,in this instance.
     Running the query, the results are
     stored in a variable, table_names.
-
     Args:
         Not required.
-
     Returns:
         table_names (tuple): A tuple of all table names, to be used
         by further SQL query in lambda_handler function.
@@ -176,7 +169,6 @@ def put_tables_to_csv():
     the value of this query to a variable named table_data.
     Using with open, we will use the CSV library to write
     this table_data to a new file in CSV format.
-
     Args:
         Not required.
     Returns:
@@ -184,8 +176,8 @@ def put_tables_to_csv():
         stores in a tmp directory.
     """
 
-    if not os.path.exists("tmp"):
-        os.makedirs("tmp")
+    if not os.path.exists("/tmp/"):
+        os.makedirs("/tmp/")
     table_names = db_tables_fetcher()
     for table_name in table_names:
         try:
@@ -203,7 +195,7 @@ def put_tables_to_csv():
                 column_names.append(col[0])
 
             table_data = conn_db().run(query)
-            with open(f"tmp/csv_input/{table_name[0]}.csv",
+            with open(f"/tmp/csv_input/{table_name[0]}.csv",
                       "w", newline="") as csvfile:
                 w = csv.DictWriter(csvfile, column_names)
                 if csvfile.tell() == 0:
@@ -263,13 +255,13 @@ def s3_setup_success(input_bucket):
 def s3_upload_csv_files(input_bucket):
     s3 = boto3.resource('s3')
     if s3_setup_success(input_bucket):
-        if os.path.exists('./tmp'):
-            csv_files = os.listdir('./tmp/csv_input')
+        if os.path.exists('/tmp/'):
+            csv_files = os.listdir('/tmp/csv_input')
             if len(csv_files) > 0:
                 for file in csv_files:
                     s3.Bucket(
                         get_csv_store_bucket()).upload_file(
-                        f'./tmp/csv_input/{file}',
+                        f'/tmp/csv_input/{file}',
                         f'input_csv_key/{file}')
             else:
                 raise ValueError(
@@ -288,7 +280,6 @@ def update_csv_export_file(bucket):
       then uploads to input_csv_key on the bucket.
       Args:
           Not required.
-
       Returns:
           nothing
     """
@@ -298,22 +289,19 @@ def update_csv_export_file(bucket):
         s3.download_file(
             bucket,
             'input_csv_key/csv_export.txt',
-            './tmp/csv_input/csv_export.txt')
+            '/tmp/csv_input/csv_export.txt')
     except Exception as error:
         raise ValueError(f'ERROR: {error}')
 
-    contents = open('./tmp/csv_input/csv_export.txt', 'r').read()
+    contents = open('/tmp/csv_input/csv_export.txt', 'r').read()
     num = int(contents.split(' ')[1])
-    with open('./tmp/csv_input/csv_export.txt', 'w+') as file:
+    with open('/tmp/csv_input/csv_export.txt', 'w+') as file:
         file.write(f'Run {num+1}')
 
     try:
         s3.upload_file(
-            "./tmp/csv_input/csv_export.txt",
+            "/tmp/csv_input/csv_export.txt",
             bucket,
             "input_csv_key/csv_export.txt")
     except Exception as error:
         raise ValueError(f'ERROR: {error}')
-
-
-lambda_handler("m", "s")

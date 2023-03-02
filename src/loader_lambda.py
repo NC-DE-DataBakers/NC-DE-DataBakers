@@ -58,44 +58,42 @@ def lambda_handler(event, context):
 def create_dirs():
     clean_tmp()
 
-    if not os.path.isdir('./tmp'):
-        os.makedirs('./tmp')
-    if not os.path.isdir('./tmp/csv_input'):
-        os.makedirs('./tmp/csv_input')
-    if not os.path.isdir('./tmp/csv_processed'):
-        os.makedirs('./tmp/csv_processed')
-    if not os.path.isdir('./tmp/pqt_input'):
-        os.makedirs('./tmp/pqt_input')
-    if not os.path.isdir('./tmp/pqt_processed'):
-        os.makedirs('./tmp/pqt_processed')
+    if not os.path.isdir('/tmp/'):
+        os.makedirs('/tmp/')
+    if not os.path.isdir('/tmp/csv_input/'):
+        os.makedirs('/tmp/csv_input/')
+    if not os.path.isdir('/tmp/csv_processed/'):
+        os.makedirs('/tmp/csv_processed/')
+    if not os.path.isdir('/tmp/pqt_input/'):
+        os.makedirs('/tmp/pqt_input/')
+    if not os.path.isdir('/tmp/pqt_processed/'):
+        os.makedirs('/tmp/pqt_processed/')
 
 
 def clean_tmp():
-    folders = [f.path for f in os.scandir('./tmp') if f.is_dir()]
+    folders = [f.path for f in os.scandir('/tmp/') if f.is_dir()]
 
     for folder in folders:
         files = os.listdir(folder)
         for file in files:
-            os.remove(f'{folder}{file}')
+            os.remove(f'{folder}/{file}')
 
         # os.removedirs removes parent directory if it is empty in the last
         # run!
         os.rmdir(folder)
 
-    if os.path.isdir('./tmp'):
+    if os.path.isdir('/tmp/'):
 
-        files = os.listdir('./tmp')
+        files = os.listdir('/tmp/')
         for file in files:
-            os.remove(f'./tmp/{file}')
+            os.remove(f'/tmp/{file}')
 
 
 def s3_list_buckets():
     """Using the s3 client, we will return a list containing the names
     of all the buckets.
-
     Args:
         Not required.
-
     Returns:
         List of all s3 buckets.
     """
@@ -110,10 +108,8 @@ def s3_list_prefix_parquet_buckets():
     through a for loop of the list returned in s3_list_buckets.
     We will also add some error handling that checks if the bucket is empty,
     or if the prefix is not found
-
     Args:
         Not required.
-
     Returns:
         The name of the correct prefixed bucket, ValueError otherwise
     """
@@ -133,10 +129,8 @@ def s3_pqt_input_setup_success(bucket):
     to ensure that terraform has been setup correctly.
     If it does not return with the desired outcome,
     an error will be raised regarding the terraform deployment
-
     Args:
         Not required.
-
     Returns:
         True if file is found, ValueError otherwise.
     """
@@ -157,10 +151,8 @@ def s3_pqt_processed_setup_success(bucket):
     to ensure that terraform has been setup correctly.
     If it does not return with the desired outcome,
     an error will be raised regarding the terraform deployment
-
     Args:
         Not required.
-
     Returns:
         True if file is found, ValueError otherwise.
     """
@@ -180,10 +172,8 @@ def dowload_parquet_files_to_process(bucket):
     downloads all the parquet files to a temporary pqt_tmp local directory
     Args:
         Not required.
-
     Returns:
         nothing
-
     """
     s3 = boto3.client('s3')
 
@@ -192,7 +182,7 @@ def dowload_parquet_files_to_process(bucket):
         for key in list:
             if ('input_parquet_key' in key['Key']):
                 s3.download_file(bucket, key['Key'],
-                                 f'./tmp/pqt_input/{key["Key"].split("/")[1]}')
+                                 f'/tmp/pqt_input/{key["Key"].split("/")[1]}')
     else:
         raise ValueError("ERROR: Terraform deployment unsuccessful")
 
@@ -204,10 +194,8 @@ def s3_move_parquet_files_to_parquet_processed_key_and_delete_from_input(
     We will check the name of the parquet bucket using the s3 list and we will
     also check that the set-up for the processed key was successful.
     If not, it will throw an error.
-
     Args:
         Not required.
-
     Returns:
         Nothing, unless there is an error.
     """
@@ -238,10 +226,8 @@ def s3_create_parquet_processed_completed_txt_file(bucket):
     then we will increment it each time this current function is run by "1".
     At the same time a separate file will read from the run number file and log
     each time this function is run appending the run number on another line.
-
     Args:
         Not required.
-
     Returns:
         Nothing.
     """
@@ -249,17 +235,17 @@ def s3_create_parquet_processed_completed_txt_file(bucket):
 
     try:
         s3.download_file(bucket, 'processed_parquet_key/parquet_processed.txt',
-                                 './tmp/pqt_input/parquet_processed.txt')
+                                 '/tmp/pqt_input/parquet_processed.txt')
     except Exception as error:
         raise ValueError(f'ERROR: {error}')
 
-    contents = open('./tmp/pqt_input/parquet_processed.txt', 'r').read()
+    contents = open('/tmp/pqt_input/parquet_processed.txt', 'r').read()
     num = int(contents.split(' ')[1])
-    with open('./tmp/pqt_input/parquet_processed.txt', 'w+') as file:
+    with open('/tmp/pqt_input/parquet_processed.txt', 'w+') as file:
         file.write(f'Run {num+1}')
 
     try:
-        s3.upload_file("./tmp/pqt_input/parquet_processed.txt", bucket,
+        s3.upload_file("/tmp/pqt_input/parquet_processed.txt", bucket,
                        "processed_parquet_key/parquet_processed.txt")
     except Exception as error:
         raise ValueError(f'ERROR: {error}')
@@ -275,10 +261,8 @@ def conn_db():
     function with the correct host name, database name and credentials.
     We will be able to access the database in a pythonic context and use python
     and PostgreSQL to achieve the intended functionality.
-
     Args:
         Not required.
-
     Returns:
         conn (pg8000.legacy.Connection):
         A database connection to be used by name_fetcher function.
@@ -320,17 +304,14 @@ def conn_db():
 
 def empty_tables():
     """This PSQL query empties all tables from data.
-
     Args:
         Not required.
-
     Returns:
         Not required.
     """
 
     # delete_query = "DELETE FROM dim_date WHERE year > 1800 RETURNING *;"
-    delete_query = 'TRUNCATE dim_date, dim_staff, dim_location,'
-    + 'dim_currency, dim_design, dim_counterparty, fact_sales_order;'
+    delete_query = 'TRUNCATE dim_date, dim_staff, dim_location, dim_currency, dim_design, dim_counterparty, fact_sales_order;'
 
     try:
         conn = conn_db()
@@ -348,10 +329,8 @@ def empty_tables():
 
 def fill_tables():
     """This PSQL query fills all tables in the data warehouse.
-
     Args:
         Not required.
-
     Returns:
         Not required.
     """
@@ -371,29 +350,29 @@ def fill_tables():
     engine = sa.create_engine(
         f'postgresql://{user}:{password}@{host}:5432/{database}')
 
-    dim_date = pd.read_parquet('./tmp/pqt_input/dim_date.parquet')
+    dim_date = pd.read_parquet('/tmp/pqt_input/dim_date.parquet')
     dim_date.to_sql('dim_date', engine, if_exists='append', index=False)
 
-    dim_design = pd.read_parquet('./tmp/pqt_input/dim_design.parquet')
+    dim_design = pd.read_parquet('/tmp/pqt_input/dim_design.parquet')
     dim_design.to_sql('dim_design', engine, if_exists='append', index=False)
 
     dim_counterparty = pd.read_parquet(
-        './tmp/pqt_input/dim_counterparty.parquet')
+        '/tmp/pqt_input/dim_counterparty.parquet')
     dim_counterparty.to_sql('dim_counterparty', engine,
                             if_exists='append', index=False)
 
-    dim_currency = pd.read_parquet('./tmp/pqt_input/dim_currency.parquet')
+    dim_currency = pd.read_parquet('/tmp/pqt_input/dim_currency.parquet')
     dim_currency.to_sql('dim_currency', engine,
                         if_exists='append', index=False)
 
-    dim_location = pd.read_parquet('./tmp/pqt_input/dim_location.parquet')
+    dim_location = pd.read_parquet('/tmp/pqt_input/dim_location.parquet')
     dim_location.to_sql('dim_location', engine,
                         if_exists='append', index=False)
 
-    dim_staff = pd.read_parquet('./tmp/pqt_input/dim_staff.parquet')
+    dim_staff = pd.read_parquet('/tmp/pqt_input/dim_staff.parquet')
     dim_staff.to_sql('dim_staff', engine, if_exists='append', index=False)
 
     fact_sales_order = pd.read_parquet(
-        './tmp/pqt_input/fact_sales_order.parquet')
+        '/tmp/pqt_input/fact_sales_order.parquet')
     fact_sales_order.to_sql('fact_sales_order', engine,
                             if_exists='append', index=False)
