@@ -1,4 +1,3 @@
-# SOMETHING WRONG IN THIS FILE
 resource "aws_s3_bucket" "code_bucket" {
   bucket_prefix = "nc-de-databakers-code-vault-"
 }
@@ -123,14 +122,6 @@ resource "aws_s3_bucket_notification" "bucket_notification_loader" {
 
   depends_on = [aws_lambda_permission.allow_loader_scheduler]
 }
-
-
-######
-# Testing Notifications on a key
-# see Lambda.tf file at the bottom 
-######
-
-# "${path.module}/../function.zip"
 
 resource "aws_s3_bucket" "tester_bucket" {
   bucket_prefix = "nc-de-databakers-tester-data-"

@@ -1,51 +1,51 @@
 variable "code_lambda_name" {
   type    = string
-  default = "s3-code-reader" #s3-file-reader
+  default = "s3-code-reader" 
 }
 
 variable "extractor_lambda_name" {
   type    = string
-  default = "data_extractor" #s3-file-reader
+  default = "data_extractor"
 }
 
 variable "transformer_lambda_name" {
   type    = string
-  default = "data_transformer" #s3-file-reader
+  default = "data_transformer"
 }
 
 variable "loader_lambda_name" {
   type    = string
-  default = "data_loader" #s3-file-reader
+  default = "data_loader"
 }
 
 variable "tester_lambda_name" {
   type    = string
-  default = "tester_lambda" #s3-file-reader
+  default = "tester_lambda"
 }
 
 variable "lambda_layer_name" {
   type    = string
-  default = "lambda_layer" #s3-file-reader
+  default = "lambda_layer"
 }
 
 variable "csv_input_name" {
   type    = string
-  default = "input_csv" #s3-file-reader
+  default = "input_csv" 
 }
 
 variable "csv_processed_name" {
   type    = string
-  default = "processed_csv" #s3-file-reader
+  default = "processed_csv"
 }
 
 variable "parquet_input_name" {
   type    = string
-  default = "input_parquet" #s3-file-reader
+  default = "input_parquet" 
 }
 
 variable "parquet_processed_name" {
   type    = string
-  default = "processed_parquet" #s3-file-reader
+  default = "processed_parquet"
 }
 
 variable "totesys_creds" {
@@ -89,7 +89,6 @@ variable "protocol" {
   default     = "email"
   description = "SNS Protocol to use. email or email-json"
 }
-
 
 variable "stack_name_extracter" {
   type        = string

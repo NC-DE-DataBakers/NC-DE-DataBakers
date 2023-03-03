@@ -105,7 +105,6 @@ data "aws_iam_policy_document" "s3_write_document_extractor" {
 
     resources = [
      aws_secretsmanager_secret.sm_totesys.arn 
-     # "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${}
     ]
   }
 
@@ -199,7 +198,7 @@ data "aws_iam_policy_document" "cw_document_extractor" {
   }
 
   statement {
-    actions = ["logs:CreateLogStream", "logs:PutLogEvents"] #, "logs:CreateLogGroup", "logs:PutRetentionPolicy"
+    actions = ["logs:CreateLogStream", "logs:PutLogEvents"]
 
     resources = [
       "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.extractor_lambda_name}:*"
@@ -217,7 +216,7 @@ data "aws_iam_policy_document" "cw_document_transformer" {
   }
 
   statement {
-    actions = ["logs:CreateLogStream", "logs:PutLogEvents"] #, "logs:CreateLogGroup", "logs:PutRetentionPolicy"
+    actions = ["logs:CreateLogStream", "logs:PutLogEvents"]
 
     resources = [
       "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.transformer_lambda_name}:*"
@@ -235,7 +234,7 @@ data "aws_iam_policy_document" "cw_document_loader" {
   }
 
   statement {
-    actions = ["logs:CreateLogStream", "logs:PutLogEvents"] #, "logs:CreateLogGroup", "logs:PutRetentionPolicy"
+    actions = ["logs:CreateLogStream", "logs:PutLogEvents"]
 
     resources = [
       "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.loader_lambda_name}:*"

@@ -9,9 +9,6 @@ data "template_file" "cloudformation_sns_stack" {
 resource "aws_cloudformation_stack" "sns_topic_extractor" {
   name          = var.stack_name_extracter
   template_body = data.template_file.cloudformation_sns_stack.rendered
-  #   tags = "${merge(
-  #     tomap("Name", "${var.stack_name}")
-  #   )}"
   tags = merge(tomap(zipmap(["Name"], [var.stack_name_extracter])))
 
 }
@@ -19,9 +16,6 @@ resource "aws_cloudformation_stack" "sns_topic_extractor" {
 resource "aws_cloudformation_stack" "sns_topic_transformer" {
   name          = var.stack_name_transformer
   template_body = data.template_file.cloudformation_sns_stack.rendered
-  #   tags = "${merge(
-  #     tomap("Name", "${var.stack_name}")
-  #   )}"
   tags = merge(tomap(zipmap(["Name"], [var.stack_name_transformer])))
 
 }
@@ -29,9 +23,5 @@ resource "aws_cloudformation_stack" "sns_topic_transformer" {
 resource "aws_cloudformation_stack" "sns_topic_loader" {
   name          = var.stack_name_loader
   template_body = data.template_file.cloudformation_sns_stack.rendered
-  #   tags = "${merge(
-  #     tomap("Name", "${var.stack_name}")
-  #   )}"
   tags = merge(tomap(zipmap(["Name"], [var.stack_name_loader])))
-
 }
